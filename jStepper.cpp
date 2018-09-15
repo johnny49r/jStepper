@@ -105,7 +105,7 @@ jStepper::jStepper(void)
 	SET_INPUT_PULLUP(ENDSTOP_MAX_2_PIN);
 #endif
 
-	setEnabled(false, false, false);
+	setEnabled(false, false, false);	// disable all drivers
 
 	WRITE(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);		// deassert step pin
 	WRITE(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
