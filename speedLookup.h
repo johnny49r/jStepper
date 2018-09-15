@@ -5,13 +5,13 @@
  * math. This solution is a bit unorthidox but does the trick.
  *
  * This lookup scheme converts an initial start interval (_c0) and a step
- * number (n) into a correct time interval for the subsequent step. It is 
- * limited to ramp steps <= LOOKUP_TBL_SIZE. 
- * Calc equivalent to: cn = c0 * (sqrt(n + 1) - sqrt(n))
- *
- * See calcAccel() for implementation.
- * Magic numbers are generated using the following code:
- * _magic = _c0 / ((2.0 * i) +0.4142);
+ * number (n) into a correct time interval for the subsequent step (_cn). The 
+ * function is equivalent to:
+ * _cn = _cn - (_c0 * (sqrt(n+1) - sqrt(n))) 
+ * Lookup[n] = _cn / _c0 * 65536
+ * 
+ * The lookup scheme performs the above calc without the need for
+ * square root or division and is resolved using a single integer multiply.
  *
  */
 
