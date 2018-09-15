@@ -73,7 +73,49 @@ jStepper::jStepper(void)
 				break;
 		}
 	}
+
+//*******************************************************************
+// initialize I/O pins
+//
+// output pins ---
+//
+	SET_OUTPUT(MOTOR_0_STEP_PIN);
+	SET_OUTPUT(MOTOR_1_STEP_PIN);
+	SET_OUTPUT(MOTOR_2_STEP_PIN);
+
+	SET_OUTPUT(MOTOR_0_DIR_PIN);
+	SET_OUTPUT(MOTOR_1_DIR_PIN);
+	SET_OUTPUT(MOTOR_2_DIR_PIN);
+
+	SET_OUTPUT(MOTOR_0_ENB_PIN);
+	SET_OUTPUT(MOTOR_1_ENB_PIN);
+	SET_OUTPUT(MOTOR_2_ENB_PIN);
+
+//
+// input pins
+//
+	SET_INPUT_PULLUP(ENDSTOP_MIN_0_PIN);	// set up endstop input w/pullup
+	SET_INPUT_PULLUP(ENDSTOP_MIN_1_PIN);
+	SET_INPUT_PULLUP(ENDSTOP_MIN_2_PIN);
 	
+
+#if defined(USE_MAX_ENDSTOPS)
+	SET_INPUT_PULLUP(ENDSTOP_MAX_0_PIN);	// set up endstop input w/pullup
+	SET_INPUT_PULLUP(ENDSTOP_MAX_1_PIN);
+	SET_INPUT_PULLUP(ENDSTOP_MAX_2_PIN);
+#endif
+
+	setEnabled(false, false, false);
+
+	WRITE(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);		// deassert step pin
+	WRITE(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+	WRITE(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+
+//
+// initialize signal states
+//
+
+
 	psPtr = this;       // initialize ptr to jStepper object
 }
 
@@ -413,7 +455,7 @@ void jStepper::setEnabled(bool enab0, bool enab1, bool enab2)
     	WRITE(MOTOR_0_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
 	    WRITE(MOTOR_0_ENB_PIN, !MOTOR_ENABLE_LEVEL);
-	
+
     if (enab1)
     	WRITE(MOTOR_1_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
@@ -423,6 +465,7 @@ void jStepper::setEnabled(bool enab0, bool enab1, bool enab2)
     	WRITE(MOTOR_2_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
 	    WRITE(MOTOR_2_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+
 }
 
 
@@ -437,17 +480,14 @@ bool jStepper::isEnabled(uint8_t motorNum)
             break;
 
         case MOTOR_1:
-            return (READ(MOTOR_1_ENB_PIN) == MOTOR_ENABLE_LEVEL);
+           	return (READ(MOTOR_1_ENB_PIN) == MOTOR_ENABLE_LEVEL);
             break;
 
         case MOTOR_2:
-            return (READ(MOTOR_2_ENB_PIN) == MOTOR_ENABLE_LEVEL);
+           	return (READ(MOTOR_2_ENB_PIN) == MOTOR_ENABLE_LEVEL);
             break;
-            
-        default:
-        	return false;
-        	break;
     }
+    return false;
 }
 
 
@@ -474,21 +514,18 @@ bool jStepper::atMinEndStop(uint8_t motorNum) {
 	switch (motorNum) 
     {
 	    case MOTOR_0:
-		    return (READ(ENDSTOP_MIN_0_PIN) == IN_ENDSTOP);
+	    	return (READ(ENDSTOP_MIN_0_PIN) == IN_ENDSTOP);
 		    break;
 
 	    case MOTOR_1:
-		    return (READ(ENDSTOP_MIN_1_PIN) == IN_ENDSTOP);
+	    	return (READ(ENDSTOP_MIN_1_PIN) == IN_ENDSTOP);
 		    break;
 
 	    case MOTOR_2:
-		    return (READ(ENDSTOP_MIN_2_PIN) == IN_ENDSTOP);
+	    	return (READ(ENDSTOP_MIN_2_PIN) == IN_ENDSTOP);
 		    break;
-
-        default:
-	        return false;    // invalid motor number
-	        break;
 	}
+	return false;
 }
 
 
@@ -499,21 +536,18 @@ bool jStepper::atMaxEndStop(uint8_t motorNum) {
 	switch (motorNum) 
     {
 	    case MOTOR_0:
-		    return (READ(ENDSTOP_MAX_0_PIN) == IN_ENDSTOP);
+    		return (READ(ENDSTOP_MAX_0_PIN) == IN_ENDSTOP);
 		    break;
 
 	    case MOTOR_1:
-		    return (READ(ENDSTOP_MAX_1_PIN) == IN_ENDSTOP);
+	    	return (READ(ENDSTOP_MAX_1_PIN) == IN_ENDSTOP);
 		    break;
 
 	    case MOTOR_2:
-		    return (READ(ENDSTOP_MAX_2_PIN) == IN_ENDSTOP);
+	    	return (READ(ENDSTOP_MAX_2_PIN) == IN_ENDSTOP);
 		    break;
-
-        default:
-	        return false;    // invalid motor number
-	        break;
 	}
+	return false;
 }
 
 

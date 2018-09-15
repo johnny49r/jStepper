@@ -39,7 +39,9 @@
 //
 // *** Arduino style pin mapping ***
 //
-
+// if the pins are not used, assign pin = 13 or
+// pick another unconnected pin to be the dead end
+//
 #define MOTOR_0_STEP_PIN        37 
 #define MOTOR_0_DIR_PIN         48
 #define MOTOR_0_ENB_PIN         29
@@ -56,9 +58,10 @@
 #define ENDSTOP_MIN_1_PIN       11
 #define ENDSTOP_MIN_2_PIN       10 
 
-#define ENDSTOP_MAX_0_PIN       0
-#define ENDSTOP_MAX_1_PIN       0
-#define ENDSTOP_MAX_2_PIN       0 
+//#define USE_MAX_ENDSTOPS		// uncomment if using max endstop pins
+#define ENDSTOP_MAX_0_PIN       13
+#define ENDSTOP_MAX_1_PIN       13
+#define ENDSTOP_MAX_2_PIN       13
 
 //*******************************************************************
 // motor control states
