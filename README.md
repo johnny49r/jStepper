@@ -25,9 +25,11 @@ The user supplies control pin information via a template header file.
 The library has been tested on the ATMega 2560 platform. It should also 
 work on the ATMega 328 and other derivatives of Atmel CPU's.
 
-## CODE
+## EXAMPLES
 
-Please see the examples for 
+Please see the examples folder.
+
+## INSTALLATION
 
 ## TODO
 - [ ] Documentation
