@@ -1,7 +1,7 @@
 # jStepper
 Arduino high performance stepper library for ATMega boards.
 
-## FEATURES:
+### FEATURES:
 1) Supports up to 3 stepper motors per instance of the library.
 2) Multiple instances limited to the number of available 16 bit timers.
 3) High speed stepping up to 20,000 PPS on three concurrent motors.
@@ -13,7 +13,7 @@ Arduino high performance stepper library for ATMega boards.
 8) Interrupt driven step engine doesn't require user program intervention.
 9) Non blocking allows multi-tasking.
 
-## HARDWARE
+### HARDWARE
 
 The general hardware model is an Arduino board with a shield containing
 stepper driver modules. This is very similar to the popular RAMPS architecture.
@@ -25,18 +25,18 @@ The user supplies control pin information via a template header file.
 The library has been tested on the ATMega 2560 platform. It should also 
 work on the ATMega 328 and other derivatives of Atmel CPU's.
 
-## EXAMPLES
+### EXAMPLES
 
 Please see the examples folder.
 
-## INSTALLATION
+### INSTALLATION
 
-## TODO
+### TODO
 - [ ] Documentation
 - [ ] Examples
 - [ ] Installation
 
-## DISCLAIMER 
+### DISCLAIMER 
 
 This code is functional and all features work but it is a work-in-progress. 
 In low performance embedded systems unique solutions are required to meet 
