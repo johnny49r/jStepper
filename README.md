@@ -30,6 +30,7 @@ work on the ATMega 328 and other derivatives of Atmel CPU's.
 Please see the examples for 
 
 ## TODO
- [ ] Documentation
- [ ] Examples
- [ ] Installation
+- [ ] Documentation
+- [ ] Examples
+- [ ] Installation
+
