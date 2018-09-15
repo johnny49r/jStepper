@@ -36,3 +36,11 @@ Please see the examples folder.
 - [ ] Examples
 - [ ] Installation
 
+## DISCLAIMER 
+
+This code is functional and all features work but it is a work-in-progress. 
+In low performance embedded systems unique solutions are required to meet 
+performance goals. Some of my methods are unorthodox but they get the 
+job done. 
+I welcome suggestions for improvement.
+
