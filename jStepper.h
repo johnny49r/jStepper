@@ -39,7 +39,6 @@
 //  >> Motor syncronization calculates movements and adjusts timing of
 //     motors to ensure they track and arrive at the same time. 
 //  >> Functions for axis homing i.e. single step and endstop detect.
-//  >> Absolute and relative positioning.
 //  >> Multiple instances of the library are supported with restrictions 
 //	   on number of 16 bit timers and use by other other functions.
 // 
@@ -148,6 +147,8 @@ enum {
 };
 
 
+// 'USE_TIMERx' is in jsconfig.h
+//
 #if defined(USE_TIMER1)
 	#define TCCRA TCCR1A
 	#define TCCRB TCCR1B
@@ -281,7 +282,7 @@ public:
 	uint8_t getDirection(uint8_t motorNum);
 
 	//**************************************************************
-   // setEnable() enables/disables the specified motor. 
+   // setEnabled() enables/disables the specified motor.
    // enab = true to enable
    // returns error if something wrong
    //

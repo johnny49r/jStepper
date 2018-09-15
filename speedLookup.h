@@ -11,7 +11,8 @@
  * Lookup[n] = _cn / _c0 * 65536
  * 
  * The lookup scheme performs the above calc without the need for
- * square root or division and is resolved using a single integer multiply.
+ * square root or division and is resolved using a single integer
+ * multiply and the trick of punning.
  *
  */
 
