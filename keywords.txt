@@ -1,0 +1,47 @@
+#######################################
+# Syntax Coloring Map For jStepper
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+jStepper	            KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+setSpeed                KEYWORD2
+getSpeed                KEYWORD2
+setMaxSpeed             KEYWORD2
+getMaxSpeed             KEYWORD2
+setAcceleration         KEYWORD2
+runMotors	            KEYWORD2
+isRunning               KEYWORD2
+quickStop               KEYWORD2
+setPositionAbs          KEYWORD2
+getPositionAbs          KEYWORD2
+timerISR                KEYWORD2
+getEndStop              KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+MOTOR_0                 LITERAL1
+MOTOR_1                 LITERAL1
+MOTOR_2                 LITERAL1
+MOTOR_ALL               LITERAL1
+
+MOTOR_DIRECTION_IN      LITERAL1
+MOTOR_DIRECTION_OUT     LITERAL1
+MOTOR_ENABLE            LITERAL1
+MOTOR_DISABLE           LITERAL1
+
+ERR_NONE                LITERAL1
+ERR_BAD_PARAM           LITERAL1
+ERR_INVALID_MOTOR       LITERAL1
+ERR_DISABLED            LITERAL1
+ERR_IN_ENDSTOP          LITERAL1
+ERR_POSITION_UNKNOWN    LITERAL1
+
