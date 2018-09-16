@@ -9,21 +9,26 @@
 // made these macros to inline code and avoid overhead
 // of a function call
 //
+#ifdef MOTOR_0_STEP_PIN
 #define STEP_MOTOR_0 \
 		WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT); \
 		DELAY_1_NOP;  \
 		WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 
+#ifdef MOTOR_1_STEP_PIN
 #define STEP_MOTOR_1 \
 		WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT); \
 		DELAY_1_NOP; \
 		WRITE_NC(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 
+#ifdef MOTOR_2_STEP_PIN
 #define STEP_MOTOR_2 \
 		WRITE_NC(MOTOR_2_STEP_PIN, STEP_PULSE_ASSERT); \
 		DELAY_1_NOP; \
 		WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
-
+#endif
 
 #define STEP_MOTOR(MOTNUM) do{ \
 	switch (MOTNUM) { \
@@ -79,42 +84,64 @@ jStepper::jStepper(void)
 //
 // output pins ---
 //
-	SET_OUTPUT(MOTOR_0_STEP_PIN);
-	SET_OUTPUT(MOTOR_1_STEP_PIN);
-	SET_OUTPUT(MOTOR_2_STEP_PIN);
-
-	SET_OUTPUT(MOTOR_0_DIR_PIN);
-	SET_OUTPUT(MOTOR_1_DIR_PIN);
-	SET_OUTPUT(MOTOR_2_DIR_PIN);
-
+#ifdef 	MOTOR_0_ENB_PIN
 	SET_OUTPUT(MOTOR_0_ENB_PIN);
+	WRITE(MOTOR_0_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+#endif
+#ifdef 	MOTOR_1_ENB_PIN
 	SET_OUTPUT(MOTOR_1_ENB_PIN);
+	WRITE(MOTOR_1_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+#endif
+#ifdef 	MOTOR_2_ENB_PIN
 	SET_OUTPUT(MOTOR_2_ENB_PIN);
+	WRITE(MOTOR_2_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+#endif
+
+#ifdef 	MOTOR_0_STEP_PIN
+	SET_OUTPUT(MOTOR_0_STEP_PIN);
+	WRITE(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
+#ifdef 	MOTOR_1_STEP_PIN
+	SET_OUTPUT(MOTOR_1_STEP_PIN);
+	WRITE(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
+#ifdef 	MOTOR_2_STEP_PIN
+	SET_OUTPUT(MOTOR_2_STEP_PIN);
+	WRITE(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
+
+#ifdef 	MOTOR_0_DIR_PIN
+	SET_OUTPUT(MOTOR_0_DIR_PIN);
+#endif
+#ifdef 	MOTOR_1_DIR_PIN
+	SET_OUTPUT(MOTOR_1_DIR_PIN);
+#endif
+#ifdef 	MOTOR_2_DIR_PIN
+	SET_OUTPUT(MOTOR_2_DIR_PIN);
+#endif
 
 //
 // input pins
 //
+#ifdef ENDSTOP_MIN_0_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MIN_0_PIN);	// set up endstop input w/pullup
+#endif
+#ifdef ENDSTOP_MIN_1_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MIN_1_PIN);
+#endif
+#ifdef ENDSTOP_MIN_2_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MIN_2_PIN);
+#endif
 	
-
-#if defined(USE_MAX_ENDSTOPS)
+#ifdef ENDSTOP_MAX_0_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MAX_0_PIN);	// set up endstop input w/pullup
+#endif
+#ifdef ENDSTOP_MAX_1_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MAX_1_PIN);
+#endif
+#ifdef ENDSTOP_MAX_2_PIN
 	SET_INPUT_PULLUP(ENDSTOP_MAX_2_PIN);
 #endif
-
-	setEnabled(false, false, false);	// disable all drivers
-
-	WRITE(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);		// deassert step pin
-	WRITE(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
-	WRITE(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
-
-//
-// initialize signal states
-//
-
 
 	psPtr = this;       // initialize ptr to jStepper object
 }
@@ -154,11 +181,8 @@ float jStepper::getAcceleration(uint8_t motorNum)
 		case MOTOR_2:
 			return mBlocks[MOTOR_2].acceleration;
 			break;     
-			
-		default:
-			return -1;
-			break;
 	}
+	return -1;
 }
 
 //###############################################################
@@ -200,34 +224,29 @@ float jStepper::getSpeed(uint8_t motorNum)
       case MOTOR_2:
          return mBlocks[MOTOR_2].speed;
          break;    
-         
-      default:
-    	  return -1;
-    	  break;
    }
+   return -1;
 }
 
 
 //###############################################################
 //
 // set motor speed in mm / sec.
-void jStepper::setMaxSpeed(uint8_t motorNum, float mMaxSpeed)   // speed in mm/sec
+void jStepper::setMaxSpeed(float maxSpeed0, float maxSpeed1, float maxSpeed2)   // speed in mm/sec
 {
-   mMaxSpeed = abs(mMaxSpeed);   // only positive number
-   
-   if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
+   if(NUM_MOTORS > 0)
    {
-      mBlocks[MOTOR_0].maxSpeed = mMaxSpeed;
+      mBlocks[MOTOR_0].maxSpeed = abs(maxSpeed0);
    }
 
-   if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
+   if(NUM_MOTORS > 1)
    {
-      mBlocks[MOTOR_1].maxSpeed = mMaxSpeed;
+      mBlocks[MOTOR_1].maxSpeed = abs(maxSpeed1);
    }
    
-   if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
+   if(NUM_MOTORS > 2)
    {
-      mBlocks[MOTOR_2].maxSpeed = mMaxSpeed;
+      mBlocks[MOTOR_2].maxSpeed = abs(maxSpeed2);
    }   
 }
 
@@ -249,11 +268,8 @@ float jStepper::getMaxSpeed(uint8_t motorNum)
       case MOTOR_2:
          return mBlocks[MOTOR_2].maxSpeed;
          break;  
-         
-      default:
-    	  return -1;
-    	  break;
    }
+   return -1;
 }
 
 
@@ -282,29 +298,27 @@ bool jStepper::isRunning(uint8_t motorNum)
 //
 void jStepper::quickStop(uint8_t motorNum) 
 {
-   if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
-   {
-      WRITE(MOTOR_0_ENB_PIN, !MOTOR_ENABLE_LEVEL);
-      mBlocks[MOTOR_0].mAction = STEP_DONE;
-   }
-
-   if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
-   {
-      WRITE(MOTOR_1_ENB_PIN, !MOTOR_ENABLE_LEVEL);
-      mBlocks[MOTOR_1].mAction = STEP_DONE;
-   }
-
-   if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
-   {
-      WRITE(MOTOR_2_ENB_PIN, !MOTOR_ENABLE_LEVEL);
-      mBlocks[MOTOR_2].mAction = STEP_DONE;
-   }
+	if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
+	{
+		setEnabled(MOTOR_0, false);
+		mBlocks[MOTOR_0].mAction = STEP_DONE;
+	}
+	if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
+	{
+		setEnabled(MOTOR_1, false);
+	    mBlocks[MOTOR_1].mAction = STEP_DONE;
+	}
+	if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
+	{
+		setEnabled(MOTOR_2, false);
+	    mBlocks[MOTOR_2].mAction = STEP_DONE;
+	}
 }
 
 
 //###############################################################
 //
-uint8_t jStepper::setPositionAbs(float pos0, float pos1, float pos2) 
+uint8_t jStepper::setPosition(float pos0, float pos1, float pos2)
 {
 	uint8_t ecode = ERR_NONE;
 	
@@ -329,7 +343,7 @@ uint8_t jStepper::setPositionAbs(float pos0, float pos1, float pos2)
 
 //###############################################################
 //
-float jStepper::getPositionAbs(uint8_t motorNum) 
+float jStepper::getPosition(uint8_t motorNum)
 {
 	if(motorNum >= NUM_MOTORS)
 		return -1;
@@ -390,24 +404,30 @@ void jStepper::setDirection(uint8_t motorNum, uint8_t dir)
 	switch(motorNum)
 	{
 		case MOTOR_0:
+#ifdef MOTOR_0_DIR_PIN
 			if (dir == MOTOR_DIRECTION_IN)
 				WRITE(MOTOR_0_DIR_PIN, MOTOR_0_DIRECTION_IN);
 			else
 				WRITE(MOTOR_0_DIR_PIN, !MOTOR_0_DIRECTION_IN);
+#endif
 			break;
 		
 		case MOTOR_1:
+#ifdef MOTOR_1_DIR_PIN
 			if (dir == MOTOR_DIRECTION_IN)
 				WRITE(MOTOR_1_DIR_PIN, MOTOR_1_DIRECTION_IN);
 			else
 				WRITE(MOTOR_1_DIR_PIN, !MOTOR_1_DIRECTION_IN);
+#endif
 			break;
 			
 		case MOTOR_2:
+#ifdef MOTOR_2_DIR_PIN
 			if (dir == MOTOR_DIRECTION_IN)
 				WRITE(MOTOR_2_DIR_PIN, MOTOR_2_DIRECTION_IN);
 			else
 				WRITE(MOTOR_2_DIR_PIN, !MOTOR_2_DIRECTION_IN);
+#endif
 			break;			
 	}
 }
@@ -420,52 +440,69 @@ uint8_t jStepper::getDirection(uint8_t motorNum)
 	switch (motorNum) 
     {
 	    case MOTOR_0:
+#ifdef MOTOR_0_DIR_PIN
             if(READ(MOTOR_0_DIR_PIN) == MOTOR_0_DIRECTION_IN)
         		return MOTOR_DIRECTION_IN;
             else
                 return MOTOR_DIRECTION_OUT;
+#endif
             break;
 
 	    case MOTOR_1:
+#ifdef MOTOR_1_DIR_PIN
             if(READ(MOTOR_1_DIR_PIN) == MOTOR_1_DIRECTION_IN)
         		return MOTOR_DIRECTION_IN;
             else
                 return MOTOR_DIRECTION_OUT;
+#endif
 		    break;
 
 	    case MOTOR_2:
+#ifdef MOTOR_2_DIR_PIN
             if(READ(MOTOR_2_DIR_PIN) == MOTOR_2_DIRECTION_IN)
         		return MOTOR_DIRECTION_IN;
             else
                 return MOTOR_DIRECTION_OUT;
+#endif
 		    break;
-		    
-	    default:
-	    	return 0;
-	    	break;
 	}
+	return 0;
 }
 
 
 //###############################################################
 //
-void jStepper::setEnabled(bool enab0, bool enab1, bool enab2)
+void jStepper::setEnabled(uint8_t motorNum, bool enab)
 {
-    if (enab0)
+	if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
+	{
+#ifdef 	MOTOR_0_ENB_PIN
+    if (enab)
     	WRITE(MOTOR_0_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
 	    WRITE(MOTOR_0_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+#endif
+	}
 
-    if (enab1)
+	if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
+	{
+#ifdef 	MOTOR_1_ENB_PIN
+    if (enab)
     	WRITE(MOTOR_1_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
 	    WRITE(MOTOR_1_ENB_PIN, !MOTOR_ENABLE_LEVEL);
+#endif
+	}
 
-    if (enab2)
+	if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
+	{
+#ifdef 	MOTOR_2_ENB_PIN
+    if (enab)
     	WRITE(MOTOR_2_ENB_PIN, MOTOR_ENABLE_LEVEL);
 	else
 	    WRITE(MOTOR_2_ENB_PIN, !MOTOR_ENABLE_LEVEL);
-
+#endif
+	}
 }
 
 
@@ -476,15 +513,21 @@ bool jStepper::isEnabled(uint8_t motorNum)
     switch(motorNum)
     {
         case MOTOR_0:
+#ifdef MOTOR_0_ENB_PIN
             return (READ(MOTOR_0_ENB_PIN) == MOTOR_ENABLE_LEVEL);
+#endif
             break;
 
         case MOTOR_1:
+#ifdef MOTOR_1_ENB_PIN
            	return (READ(MOTOR_1_ENB_PIN) == MOTOR_ENABLE_LEVEL);
+#endif
             break;
 
         case MOTOR_2:
+#ifdef MOTOR_2_ENB_PIN
            	return (READ(MOTOR_2_ENB_PIN) == MOTOR_ENABLE_LEVEL);
+#endif
             break;
     }
     return false;
@@ -514,15 +557,21 @@ bool jStepper::atMinEndStop(uint8_t motorNum) {
 	switch (motorNum) 
     {
 	    case MOTOR_0:
+#ifdef ENDSTOP_MIN_0_PIN
 	    	return (READ(ENDSTOP_MIN_0_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 
 	    case MOTOR_1:
+#ifdef ENDSTOP_MIN_1_PIN
 	    	return (READ(ENDSTOP_MIN_1_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 
 	    case MOTOR_2:
+#ifdef ENDSTOP_MIN_2_PIN
 	    	return (READ(ENDSTOP_MIN_2_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 	}
 	return false;
@@ -536,15 +585,21 @@ bool jStepper::atMaxEndStop(uint8_t motorNum) {
 	switch (motorNum) 
     {
 	    case MOTOR_0:
+#ifdef ENDSTOP_MAX_0_PIN
     		return (READ(ENDSTOP_MAX_0_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 
 	    case MOTOR_1:
+#ifdef ENDSTOP_MAX_1_PIN
 	    	return (READ(ENDSTOP_MAX_1_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 
 	    case MOTOR_2:
+#ifdef ENDSTOP_MAX_2_PIN
 	    	return (READ(ENDSTOP_MAX_2_PIN) == IN_ENDSTOP);
+#endif
 		    break;
 	}
 	return false;
@@ -584,7 +639,9 @@ void jStepper::timerISRA(void)
 	switch (mBlocks[MOTOR_0].mAction)     // check profile state
 	{
     	case STEP_CRUISE:			// constant speed
+#ifdef MOTOR_0_STEP_PIN
     		WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT);		// step pulse assert
+#endif
     		OCRA += uint16_t(mBlocks[MOTOR_0].cruiseInterval << 1);
 			if (--mBlocks[MOTOR_0].cruiseSteps == 0)
 			{
@@ -595,21 +652,29 @@ void jStepper::timerISRA(void)
 				   CBI(TIMSK, OCIEA);  // all done 
 				   mBlocks[MOTOR_0].mAction = STEP_DONE;
 			   }
-			}		
+			}
+#ifdef MOTOR_0_STEP_PIN
 			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);		// step pulse deassert
+#endif
 			break;
 
 		case STEP_ACCEL:		// accelerating
-			WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT);		
+#ifdef MOTOR_0_STEP_PIN
+			WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_0].startInterval, ++mBlocks[MOTOR_0].rampStepCount);
 			OCRA += pun.val16[1] << 1;
 			if (mBlocks[MOTOR_0].rampStepCount >= mBlocks[MOTOR_0].rampSteps)
 			   mBlocks[MOTOR_0].mAction = (mBlocks[MOTOR_0].cruiseSteps > 0) ? STEP_CRUISE : STEP_DECEL; // decel if no cruise steps
+#ifdef MOTOR_0_STEP_PIN
 			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 
 		case STEP_DECEL:		// decelerating
+#ifdef MOTOR_0_STEP_PIN
 			WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT);	
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_0].startInterval, mBlocks[MOTOR_0].rampStepCount--);
 			OCRA += pun.val16[1] << 1;
 			if (!mBlocks[MOTOR_0].rampStepCount)
@@ -617,13 +682,17 @@ void jStepper::timerISRA(void)
 			   CBI(TIMSK, OCIEA);  // last phase, all done!
 			   mBlocks[MOTOR_0].mAction = STEP_DONE;
 			}
-			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);			
+#ifdef MOTOR_0_STEP_PIN
+			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 			
       case STEP_LONG:			// long interval
          if(mBlocks[MOTOR_0].cruiseInterval < 32768)
          {
+#ifdef MOTOR_0_STEP_PIN
         	WRITE_NC(MOTOR_0_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
             mBlocks[MOTOR_0].cruiseInterval = mBlocks[MOTOR_0].cruiseReload;
             frac = mBlocks[MOTOR_0].cruiseInterval & 0x7FFF;
             NOTLESS(frac, 16);	// move fwd enough so we don't overrun timer
@@ -635,8 +704,9 @@ void jStepper::timerISRA(void)
             }
             else
                SBI(TIFR, OCFA);    	// clear any pending interrupts		
-			
-			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);  			
+#ifdef MOTOR_0_STEP_PIN
+			WRITE_NC(MOTOR_0_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
          }
          else
             mBlocks[MOTOR_0].cruiseInterval -= 32768;    // interval minus whole number
@@ -659,7 +729,9 @@ void jStepper::timerISRB(void)
    switch (mBlocks[MOTOR_1].mAction)     // check profile state
    {
       case STEP_CRUISE:			// constant speed
-    	  WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT);       
+#ifdef MOTOR_1_STEP_PIN
+    	  WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
     	  OCRB += (mBlocks[MOTOR_1].cruiseInterval << 1);
     	  if (--mBlocks[MOTOR_1].cruiseSteps == 0)
     	  {
@@ -671,21 +743,28 @@ void jStepper::timerISRB(void)
     			  mBlocks[MOTOR_1].mAction = STEP_DONE;
     		  }
     	  }	
+#ifdef MOTOR_1_STEP_PIN
     	  WRITE_NC(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
     	  break;
 
 		case STEP_ACCEL:		// accelerating
+#ifdef MOTOR_1_STEP_PIN
 			WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_1].startInterval, ++mBlocks[MOTOR_1].rampStepCount);
 			OCRB += pun.val16[1] << 1;
 			if (mBlocks[MOTOR_1].rampStepCount >= mBlocks[MOTOR_1].rampSteps)
 			   mBlocks[MOTOR_1].mAction = (mBlocks[MOTOR_1].cruiseSteps > 0) ? STEP_CRUISE : STEP_DECEL; // decel if no cruise steps
-			
+#ifdef MOTOR_1_STEP_PIN
 			WRITE_NC(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 
 		case STEP_DECEL:		// decelerating
+#ifdef MOTOR_1_STEP_PIN
 			WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_1].startInterval, mBlocks[MOTOR_1].rampStepCount--);
 			OCRB += pun.val16[1] << 1;
 			if (!mBlocks[MOTOR_1].rampStepCount)
@@ -693,13 +772,17 @@ void jStepper::timerISRB(void)
 			   CBI(TIMSK, OCIEB);  // last phase, all done!
 			   mBlocks[MOTOR_1].mAction = STEP_DONE;
 			}
+#ifdef MOTOR_1_STEP_PIN
 			WRITE_NC(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 			
       case STEP_LONG:			// long interval
          if(mBlocks[MOTOR_1].cruiseInterval < 32768)
          {
+#ifdef MOTOR_1_STEP_PIN
         	 WRITE_NC(MOTOR_1_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
         	 mBlocks[MOTOR_1].cruiseInterval = mBlocks[MOTOR_1].cruiseReload;
         	 frac = mBlocks[MOTOR_1].cruiseInterval & 0x7FFF;
         	 NOTLESS(frac, 16);
@@ -710,8 +793,10 @@ void jStepper::timerISRB(void)
 			 		 CBI(TIMSK, OCIEB);  // disable int's   		         
 			 	 }
 			 	 else
-			 		 SBI(TIFR, OCFB);    	// clear pending interrupts		
+			 		 SBI(TIFR, OCFB);    	// clear pending interrupts
+#ifdef MOTOR_1_STEP_PIN
 			 WRITE_NC(MOTOR_1_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
          }
          else
             mBlocks[MOTOR_1].cruiseInterval -= 32768;    // interval - whole number
@@ -733,7 +818,9 @@ void jStepper::timerISRC(void)
    switch (mBlocks[MOTOR_2].mAction)     // check profile state
    {
       case STEP_CRUISE:			// constant speed
+#ifdef MOTOR_2_STEP_PIN
     	  WRITE_NC(MOTOR_2_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
     	  OCRC += (mBlocks[MOTOR_2].cruiseInterval << 1);
     	  if (--mBlocks[MOTOR_2].cruiseSteps == 0)
     	  {
@@ -745,21 +832,28 @@ void jStepper::timerISRC(void)
      		      mBlocks[MOTOR_2].mAction = STEP_DONE;  
     		  }
     	  }	
+#ifdef MOTOR_2_STEP_PIN
     	  WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
     	  break;
 
 		case STEP_ACCEL:		// accelerating
+#ifdef MOTOR_2_STEP_PIN
 			WRITE_NC(MOTOR_2_STEP_PIN, STEP_PULSE_ASSERT);;
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_2].startInterval, ++mBlocks[MOTOR_2].rampStepCount);
 			OCRC += pun.val16[1] << 1;
 			if (mBlocks[MOTOR_2].rampStepCount >= mBlocks[MOTOR_2].rampSteps)
 			   mBlocks[MOTOR_2].mAction = (mBlocks[MOTOR_2].cruiseSteps > 0) ? STEP_CRUISE : STEP_DECEL; // decel if no cruise steps
-			
+#ifdef MOTOR_2_STEP_PIN
 			WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 
 		case STEP_DECEL:		// decelerating
+#ifdef MOTOR_2_STEP_PIN
 			WRITE_NC(MOTOR_2_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
 			CALC_ACCEL(pun.val32, mBlocks[MOTOR_2].startInterval, mBlocks[MOTOR_2].rampStepCount--);
 			OCRC += pun.val16[1] << 1;
 			if (!mBlocks[MOTOR_2].rampStepCount)
@@ -767,13 +861,17 @@ void jStepper::timerISRC(void)
 			   CBI(TIMSK, OCIEC);  // last phase, all done!
 			   mBlocks[MOTOR_2].mAction = STEP_DONE;
 			}
-			WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);			
+#ifdef MOTOR_2_STEP_PIN
+			WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			break;
 			
 		case STEP_LONG:			// long interval
 			if(mBlocks[MOTOR_2].cruiseInterval < 32768)
 			{
+#ifdef MOTOR_2_STEP_PIN
 				WRITE_NC(MOTOR_2_STEP_PIN, STEP_PULSE_ASSERT);
+#endif
 				mBlocks[MOTOR_2].cruiseInterval = mBlocks[MOTOR_2].cruiseReload;
 				frac = mBlocks[MOTOR_2].cruiseInterval & 0x7FFF;
 				NOTLESS(frac, 16);
@@ -784,8 +882,10 @@ void jStepper::timerISRC(void)
 					CBI(TIMSK, OCIEC);  // disable int's   		         
 				}
 				else
-					SBI(TIFR, OCFC);    	// clear pending interrupts		
+					SBI(TIFR, OCFC);    	// clear pending interrupts
+#ifdef MOTOR_2_STEP_PIN
 				WRITE_NC(MOTOR_2_STEP_PIN, !STEP_PULSE_ASSERT);
+#endif
 			}
 			else
 				mBlocks[MOTOR_2].cruiseInterval -= 32768;    // interval - whole number
@@ -823,6 +923,9 @@ uint8_t jStepper::runMotors(bool mSync)
 	   uint16_t val16[2];
 	   uint32_t val32;
 	}pun;
+
+	if(isRunning(MOTOR_ALL))
+		return ERR_MOTORS_RUNNING;
 
 	// iterate through all motors
 	for (i = 0; i < NUM_MOTORS; i++)

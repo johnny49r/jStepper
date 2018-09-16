@@ -12,11 +12,6 @@
 #define _JSCONFIG_H
 
 //*******************************************************************
-// NUM_MOTORS can be from 1 to 3
-//
-#define NUM_MOTORS 3		
-
-//*******************************************************************
 // TIMER SELECTION - library needs one 16 bit timer per instance
 // Must be unused by any other function
 //
@@ -39,8 +34,7 @@
 //
 // *** Arduino style pin mapping ***
 //
-// if the pins are not used, assign pin = 13 or
-// pick another unconnected pin to be the dead end
+// NOTE: comment out pins you aren't using
 //
 #define MOTOR_0_STEP_PIN        37 
 #define MOTOR_0_DIR_PIN         48
@@ -58,15 +52,13 @@
 #define ENDSTOP_MIN_1_PIN       11
 #define ENDSTOP_MIN_2_PIN       10 
 
-//#define USE_MAX_ENDSTOPS		// uncomment if using max endstop pins
-#define ENDSTOP_MAX_0_PIN       13
-#define ENDSTOP_MAX_1_PIN       13
-#define ENDSTOP_MAX_2_PIN       13
+//#define ENDSTOP_MAX_0_PIN       0
+//#define ENDSTOP_MAX_1_PIN       0
+//#define ENDSTOP_MAX_2_PIN       0
 
 //*******************************************************************
 // motor control states
 //
-
 #define STEP_PULSE_ASSERT       HIGH   // transition to this state causes step pulse
 #define MOTOR_ENABLE_LEVEL      LOW    // driver enable asserted level
 
