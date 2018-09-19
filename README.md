@@ -34,7 +34,7 @@ Please see the examples folder.
 Download from Github as a ZIP file.
 Place the ZIP file in your Arduino/libraries directory.
 In the Arduino IDE goto Sketch->Include Library->Add .ZIP Library to install.
-Your sketch should now have "#include <jStepper.h>". If not add it.
+Your sketch should now have "#include <jStepper.h>". If not add it manually.
 
 ### TODO
 
