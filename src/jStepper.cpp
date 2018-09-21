@@ -35,49 +35,40 @@
 		break; \
 	} }while(0)
 
-    jStepper *psPtr;    // global jStepper obj for ISR's
+    jStepper *psPtr_1 = NULL;
+    jStepper *psPtr_3 = NULL;
+    jStepper *psPtr_4 = NULL;
+    jStepper *psPtr_5 = NULL;
 
+    typedef void(*functPtr)();
+    jStepper *isrRedirectObj = NULL;
+    static functPtr isrRedirectArray[12] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 //###################################################################
 //
 // jStepper constructor
 jStepper::jStepper(void)
 {
-	uint16_t i;
-
-	// set default parameters for all motors
-	for (i = MOTOR_0; i < NUM_MOTORS; i++)
-	{
-		mBlocks[i].minPosition = 0.0;
-		mBlocks[i].maxPosition = 0.0;
-		mBlocks[i].curPosition = 0.0;
-		mBlocks[i].newPosition = 0.0;
-		mBlocks[i].acceleration = 0.0;
-		mBlocks[i].speed = 10.0;         // something conservative
-		mBlocks[i].maxSpeed = MAX_SPEED; // 
-		mBlocks[i].cruiseSteps = 0;
-		mBlocks[i].numSteps = 0;
-		mBlocks[i].positionKnown = false;
-		mBlocks[i].mAction = STEP_DONE;
-
-	}
-	psPtr = this;       // initialize ptr to jStepper object
+	// nothing much to do here
 }
 
 
-//###############################################################
-//
-void jStepper::begin(jsMotorConfig mC)
-{
-	_mConfig = mC;		// keep a local copy of the user struct
 
-	_timerUsed = _mConfig.TIMER_SELECT;
+//###################################################################
+//
+uint32_t jStepper::begin(jsMotorConfig mC)
+{
+	uint8_t i;
+
+	_mConfig = mC;		// keep a local copy of the user struct
+	if(isrRedirectObj == NULL)
+		isrRedirectObj = this;	// only init one time
 
 	mBlocks[0].stepsPerMM = _mConfig.MOTOR_0_STEPS_PER_MM;
 	mBlocks[1].stepsPerMM = _mConfig.MOTOR_1_STEPS_PER_MM;
 	mBlocks[2].stepsPerMM = _mConfig.MOTOR_2_STEPS_PER_MM;
 
-	//*******************************************************************
+	//***************************************************************
 	// initialize I/O pins
 	//
 	// output pins ---
@@ -127,6 +118,8 @@ void jStepper::begin(jsMotorConfig mC)
 			_OCRC = _OCR1C;
 			_TIMSK = _TIMSK1;
 			_TIFR = _TIFR1;
+
+			psPtr_1 = this;			// set ISR object ptr to this instance
 			break;
 
 		case TIMER_SEL_3:
@@ -138,6 +131,8 @@ void jStepper::begin(jsMotorConfig mC)
 			_OCRC = _OCR3C;
 			_TIMSK = _TIMSK3;
 			_TIFR = _TIFR3;
+
+			psPtr_3 = this;
 			break;
 
 		case TIMER_SEL_4:
@@ -149,6 +144,8 @@ void jStepper::begin(jsMotorConfig mC)
 			_OCRC = _OCR4C;
 			_TIMSK = _TIMSK4;
 			_TIFR = _TIFR4;
+
+			psPtr_4 = this;
 			break;
 
 		case TIMER_SEL_5:
@@ -160,8 +157,27 @@ void jStepper::begin(jsMotorConfig mC)
 			_OCRC = _OCR5C;
 			_TIMSK = _TIMSK5;
 			_TIFR = _TIFR5;
+
+			psPtr_5 = this;
 			break;
 	}
+
+	// set default parameters for all motors
+	for (i = MOTOR_0; i < NUM_MOTORS; i++)
+	{
+		mBlocks[i].minPosition = 0.0;
+		mBlocks[i].maxPosition = 0.0;
+		mBlocks[i].curPosition = 0.0;
+		mBlocks[i].newPosition = 0.0;
+		mBlocks[i].acceleration = 0.0;
+		mBlocks[i].speed = 10.0;         // something conservative
+		mBlocks[i].maxSpeed = MAX_SPEED; //
+		mBlocks[i].cruiseSteps = 0;
+		mBlocks[i].numSteps = 0;
+		mBlocks[i].positionKnown = false;
+		mBlocks[i].mAction = STEP_DONE;
+	}
+	return 0;
 }
 
 
@@ -593,8 +609,14 @@ bool jStepper::atMaxEndStop(uint8_t motorNum) {
 //
 void jStepper::setPositionKnown(uint8_t motorNum, bool known)
 {
-    if(motorNum < NUM_MOTORS)
-    	mBlocks[motorNum].positionKnown = known;
+    if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
+    	mBlocks[MOTOR_0].positionKnown = known;
+
+    if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
+    	mBlocks[MOTOR_1].positionKnown = known;
+
+    if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
+    	mBlocks[MOTOR_2].positionKnown = known;
 }
 
 
@@ -609,11 +631,20 @@ uint8_t jStepper::isPositionKnown(uint8_t motorNum)
 }
 
 
+
+//###############################################################
+//
+static void jStepper::deadbeef(void)
+{
+	// hollow shell only returns
+}
+
+
 //###############################################################
 //
 void jStepper::timerISRA(void)
 {
-	static union {
+	union {
 		uint16_t val16[2];
 		uint32_t val32;
 	} pun;
@@ -688,7 +719,7 @@ void jStepper::timerISRA(void)
 //
 void jStepper::timerISRB(void)
 {
-	static union {
+	union {
 		uint16_t val16[2];
 		uint32_t val32;
 	} pun;
@@ -761,7 +792,7 @@ void jStepper::timerISRB(void)
 //
 void jStepper::timerISRC(void)
 {
-	static union {
+	union {
 		uint16_t val16[2];
 		uint32_t val32;
 	} pun;
@@ -1124,14 +1155,6 @@ uint8_t jStepper::runMotors(bool mSync)
 
 
 //***************************************************************
-//
-void jStepper::timerISRvector(uint8_t whichISR, void *p)
-{
-	timerISRs[whichISR] = p;
-}
-
-
-//***************************************************************
 // used to build lookup tables
 //
 void jStepper::genLookupTable(void) {
@@ -1172,30 +1195,51 @@ uint32_t i;
 
 
 //***************************************************************
+//
+void jStepper::addTimerCallBack(uint8_t whichTimerInt, void *p)
+{
+	if(whichTimerInt < 12)
+		isrRedirectArray[whichTimerInt] = p;
+}
+
+
+//***************************************************************
+void jStepper::isrRedirect(uint8_t whichTimerInt)
+{
+	if(isrRedirectArray[whichTimerInt] != NULL)		// ptr NULL?
+		(*(isrRedirectArray[whichTimerInt]))();		// if not call external isr handler
+}
+
+
+//***************************************************************
 // interrupt handlers for timer.
 //
 ISR(TIMER1_COMPA_vect)
 {
-	if(psPtr->_timerUsed == 1)
-		psPtr->timerISRA();  // call class method to handle stepping
+	if(psPtr_1)
+		psPtr_1->timerISRA();
 	else
-		(*(psPtr->timerISRs[TMR_1_CMPA]))();
+		isrRedirectObj->isrRedirect(TMR_1_CMPA);
 }
 
 //***************************************************************
 // 
 ISR(TIMER1_COMPB_vect)
 {
-	if(psPtr->_timerUsed == 1)
-		psPtr->timerISRB();
+	if(psPtr_1)
+		psPtr_1->timerISRB();
+	else
+		isrRedirectObj->isrRedirect(TMR_1_CMPB);
 }
 
 //***************************************************************
 // 
 ISR(TIMER1_COMPC_vect)        // interrupt service routine
 {
-	if(psPtr->_timerUsed == 1)
-		psPtr->timerISRC();
+	if(psPtr_1)
+		psPtr_1->timerISRC();
+	else
+		isrRedirectObj->isrRedirect(TMR_1_CMPC);
 }
 
 
@@ -1203,26 +1247,30 @@ ISR(TIMER1_COMPC_vect)        // interrupt service routine
 //
 ISR(TIMER3_COMPA_vect)
 {
-	if(psPtr->_timerUsed == 3)
-		psPtr->timerISRA();  // call class method to handle stepping
+	if(psPtr_3)
+		psPtr_3->timerISRA();
 	else
-		(*(psPtr->timerISRs[TMR_3_CMPA]))();
+		isrRedirectObj->isrRedirect(TMR_3_CMPA);
 }
 
 //***************************************************************
 // 
 ISR(TIMER3_COMPB_vect)
 {
-	if(psPtr->_timerUsed == 3)
-		psPtr->timerISRB();
+	if(psPtr_3)
+		psPtr_3->timerISRB();
+	else
+		isrRedirectObj->isrRedirect(TMR_3_CMPB);
 }
 
 //***************************************************************
 // 
 ISR(TIMER3_COMPC_vect)        // interrupt service routine
 {
-	if(psPtr->_timerUsed == 3)
-		psPtr->timerISRC();
+	if(psPtr_3)
+		psPtr_3->timerISRC();
+	else
+		isrRedirectObj->isrRedirect(TMR_3_CMPC);
 }
 
 
@@ -1231,24 +1279,31 @@ ISR(TIMER3_COMPC_vect)        // interrupt service routine
 //
 ISR(TIMER4_COMPA_vect)
 {
-	if(psPtr->_timerUsed == 4)
-		psPtr->timerISRA();  // call class method to handle stepping
+	if(psPtr_4)
+		psPtr_4->timerISRA();
+	else
+		isrRedirectObj->isrRedirect(TMR_4_CMPA);
 }
+
 
 //***************************************************************
 // 
 ISR(TIMER4_COMPB_vect)
 {
-	if(psPtr->_timerUsed == 4)
-		psPtr->timerISRB();
+	if(psPtr_4)
+		psPtr_4->timerISRB();
+	else
+		isrRedirectObj->isrRedirect(TMR_4_CMPB);
 }
 
 //***************************************************************
 // 
 ISR(TIMER4_COMPC_vect)        // interrupt service routine
 {
-	if(psPtr->_timerUsed == 4)
-		psPtr->timerISRC();
+	if(psPtr_4)
+		psPtr_4->timerISRC();
+	else
+		isrRedirectObj->isrRedirect(TMR_4_CMPC);
 }
 
 
@@ -1257,23 +1312,29 @@ ISR(TIMER4_COMPC_vect)        // interrupt service routine
 //
 ISR(TIMER5_COMPA_vect)
 {
-	if(psPtr->_timerUsed == 5)
-		psPtr->timerISRA();  // call class method to handle stepping
+	if(psPtr_5)
+		psPtr_5->timerISRA();
+	else
+		isrRedirectObj->isrRedirect(TMR_5_CMPA);
 }
 
 //***************************************************************
 // 
 ISR(TIMER5_COMPB_vect)
 {
-	if(psPtr->_timerUsed == 5)
-		psPtr->timerISRB();
+	if(psPtr_5)
+		psPtr_5->timerISRB();
+	else
+		isrRedirectObj->isrRedirect(TMR_5_CMPB);
 }
 
 //***************************************************************
 // 
 ISR(TIMER5_COMPC_vect)        // interrupt service routine
 {
-	if(psPtr->_timerUsed == 5)
-		psPtr->timerISRC();
+	if(psPtr_5)
+		psPtr_5->timerISRC();
+	else
+		isrRedirectObj->isrRedirect(TMR_5_CMPC);
 }
 

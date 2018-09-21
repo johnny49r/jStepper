@@ -18,6 +18,11 @@
 #define AVR_ATmega2560_FAMILY (defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__))
 #define AVR_ATmega328_FAMILY (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328p__))
 
+// timer defs
+#define TIMER_SEL_1 1
+#define TIMER_SEL_3 3
+#define TIMER_SEL_4 4
+#define TIMER_SEL_5 5
 
 // common timer register control bits
 #define OCIEA 1		// timer compare interrupt enab
@@ -42,50 +47,45 @@
 // timer IO addresses for timer 1, 3, 4, & 5
 //
 // timer 1
-	#define _TCCR1A 0x80
-	#define _TCCR1B	0x81
-	#define _TCNT1 0x84
-	#define _OCR1A 0x88
-	#define _OCR1B 0x8A
-	#define _OCR1C 0x8C
-	#define _TIMSK1 0x6F
-	#define _TIFR1 0x36
+#define _TCCR1A 0x80
+#define _TCCR1B	0x81
+#define _TCNT1 0x84
+#define _OCR1A 0x88
+#define _OCR1B 0x8A
+#define _OCR1C 0x8C
+#define _TIMSK1 0x6F
+#define _TIFR1 0x36
 
 // timer 3
-	#define _TCCR3A 0x90
-	#define _TCCR3B	0x91
-	#define _TCNT3 0x94
-	#define _OCR3A 0x98
-	#define _OCR3B 0x9A
-	#define _OCR3C 0x9C
-	#define _TIMSK3 0x71
-	#define _TIFR3 0x38
+#define _TCCR3A 0x90
+#define _TCCR3B	0x91
+#define _TCNT3 0x94
+#define _OCR3A 0x98
+#define _OCR3B 0x9A
+#define _OCR3C 0x9C
+#define _TIMSK3 0x71
+#define _TIFR3 0x38
 
 // timer 4
-	#define _TCCR4A 0xA0
-	#define _TCCR4B	0xA1
-	#define _TCNT4 0xA4
-	#define _OCR4A 0xA8
-	#define _OCR4B 0xAA
-	#define _OCR4C 0xAC
-	#define _TIMSK4 0x72
-	#define _TIFR4 0x39
+#define _TCCR4A 0xA0
+#define _TCCR4B	0xA1
+#define _TCNT4 0xA4
+#define _OCR4A 0xA8
+#define _OCR4B 0xAA
+#define _OCR4C 0xAC
+#define _TIMSK4 0x72
+#define _TIFR4 0x39
 
 // timer 5
-	#define _TCCR5A 0x120
-	#define _TCCR5B	0x121
-	#define _TCNT5 0x124
-	#define _OCR5A 0x128
-	#define _OCR5B 0x12A
-	#define _OCR5C 0x12C
-	#define _TIMSK5 0x73
-	#define _TIFR5 0x3A
+#define _TCCR5A 0x120
+#define _TCCR5B	0x121
+#define _TCNT5 0x124
+#define _OCR5A 0x128
+#define _OCR5B 0x12A
+#define _OCR5C 0x12C
+#define _TIMSK5 0x73
+#define _TIFR5 0x3A
 
-// timer defs
-#define TIMER_SEL_1 1
-#define TIMER_SEL_3 3
-#define TIMER_SEL_4 4
-#define TIMER_SEL_5 5
 
 //
 // Macros for accessing I/O regs
@@ -103,6 +103,7 @@
 #define PIN_WRITE(pin, V) do{ if(V){ IO_REG16(pgm_read_word(port_lu + pin)) |= pgm_read_byte(bit_lu + pin); } \
 		else { IO_REG16(pgm_read_word(port_lu + pin)) &= ~(pgm_read_byte(bit_lu + pin)); } }while(0)
 #define PIN_INPUT_PULLUP(pin) do{ PIN_INPUT(pin); PIN_WRITE(pin, 0x01); }while(0)
+#define PIN_OUT_WRITE(pin, V) do{ PIN_OUTPUT(pin); PIN_WRITE(pin, V); }while(0)
 
 //
 // misc I/O macros

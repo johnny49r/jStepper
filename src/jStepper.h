@@ -66,11 +66,12 @@
 #include <inttypes.h>
 #include <avr/pgmspace.h>
 
+
 //#include "jsmacros.h"
 #include "jsmath.h"
 #include "jsio.h"
 #include "jsconfig.h"
-
+#include "jsIntRouter.h"
 
 
 // ==========================================================================
@@ -214,7 +215,10 @@ public:
 	//
 	jStepper(void);
 
-	void begin(jsMotorConfig);
+	//**************************************************************
+	// begin() imports the motor config structure and initializes all
+	//
+	uint32_t begin(jsMotorConfig);
 
 	//**************************************************************
 	// setSpeed() sets the speed (movement in mm/sec) for all motors
@@ -349,9 +353,17 @@ public:
 	// timerISRn() is called by the specific timer interrupt to handle
 	// step pulse generation for scheduled motors. 
 	// Timer is 16 bits @ 2Mhz which means max interval count is 32768.
+	//
 	void timerISRA(void);
 	void timerISRB(void);
 	void timerISRC(void);	
+
+
+
+	//**************************************************************
+	// deadbeef() is a do-nothing function which simply returns
+	//
+	static void deadbeef(void);
 
 	//**************************************************************
 	// atMinEndStop() returns true if endstop detector triggered.
@@ -363,15 +375,12 @@ public:
 	//
 	bool atMaxEndStop(uint8_t motorNum);	
 
-	void timerISRvector(uint8_t whichISR, void *p);
+	void addTimerCallBack(uint8_t whichTimer, void *p);
 
 	void genLookupTable(void);    // utility routine for making new lookup tables
 
-	uint8_t _timerUsed;
-	jsMotorConfig _mConfig;	// needs to be public
+	void isrRedirect(uint8_t whichTimerInt);
 
-	typedef void(*fPtr)(void);
-	fPtr timerISRs[12];
 
 protected:
 
@@ -382,6 +391,11 @@ protected:
 private:
 	mBlock_t mBlocks[NUM_MOTORS];
 	uint16_t _sort[NUM_MOTORS];
+	jsMotorConfig _mConfig;	// copy of user template
+
+
+
+
 
 	uint16_t _TCCRA;
 	uint16_t _TCCRB;

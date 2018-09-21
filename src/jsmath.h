@@ -14,12 +14,12 @@
 // Macros to contrain values
 #define NOTLESS(v,n) do{ if (v < n) v = n; }while(0)
 #define NOTMORE(v,n) do{ if (v > n) v = n; }while(0)
-#define IS_WITHIN(V,L,H) ((V) >= (L) && (V) <= (H))
 
 // Macros for chars
-#define IS_NUMERIC(a) WITHIN(a, '0', '9')     // test for numeric vals 0-9
-#define IS_ALPHA_UC(a) WITHIN(a, 'A', 'Z')    // test for upper case alpha chars
-#define IS_ALPHA_LC(a) WITHIN(a, 'a', 'z')    // test for lower case alpha chars
+#define IS_WITHIN(V,L,H) ((V) >= (L) && (V) <= (H))
+#define IS_NUMERIC(a) IS_WITHIN(a, '0', '9')     // test for numeric vals 0-9
+#define IS_ALPHA_UC(a) IS_WITHIN(a, 'A', 'Z')    // test for upper case alpha chars
+#define IS_ALPHA_LC(a) IS_WITHIN(a, 'a', 'z')    // test for lower case alpha chars
 #define IS_DECIMAL(a) (IS_NUMERIC(a) || a == '.')
 #define IS_NUMERIC_SIGNED(a) (IS_NUMERIC(a) || (a) == '-' || (a) == '+')
 #define IS_DECIMAL_SIGNED(a) (IS_DECIMAL(a) || (a) == '-' || (a) == '+')
