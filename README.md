@@ -1,7 +1,14 @@
-# jStepper
-Arduino high performance stepper library for ATMega boards.
+# jStepper 
 
-### FEATURES:
+Arduino high performance stepper library for ATMega boards. 
+
+Each instance of the library can control 3 motors. This is determined 
+by the architecture of the AVR 16 bit timers which feature 3 independent 
+compare interrupts. Each motor uses one of the compare outputs to generate 
+step pulses and plan ahead to the next step pulse.
+
+### FEATURES
+
 1) Supports up to 3 stepper motors per instance of the library.
 2) Multiple instances limited to the number of available 16 bit timers.
 3) High speed stepping up to 20,000 PPS on three concurrent motors.
@@ -12,6 +19,8 @@ Arduino high performance stepper library for ATMega boards.
 7) Primitive functions for stepping & endstop detection (homing).
 8) Interrupt driven step engine doesn't require user program intervention.
 9) Non blocking allows multi-tasking.
+10) Dynamic I/O and Timer ISR assignment.
+11) Fast I/O functions available to our program.
 
 ### HARDWARE
 
@@ -20,7 +29,7 @@ stepper driver modules. This is very similar to the popular RAMPS architecture.
 This library will also work with hybrids such as the Rambo.
 
 The code generates STEP and DIRECTION signals in real time. 
-The user supplies control pin information via a template header file.
+The user supplies control pin information via a template structure.
 
 The library has been tested on the ATMega 2560 platform. It should also 
 work on the ATMega 328 and other derivatives of Atmel CPU's.
@@ -33,8 +42,21 @@ Please see the examples folder.
 
 Download from Github as a ZIP file.
 Place the ZIP file in your Arduino/libraries directory.
-In the Arduino IDE goto Sketch->Include Library->Add .ZIP Library to install.
+In the Arduino IDE, select Sketch->Include Library->Add .ZIP Library to install.
 Your sketch should now have "#include <jStepper.h>". If not add it manually.
+
+### USAGE
+
+You will need to initialize a structure (jsMotorConfig) and pass it to the library
+in the xxx.begin function. Each instance of the library will need a different copy 
+of the jsMotorConfig with different settings.
+Each copy of the jsMotorConfig will specify the timer it will use; 1, 3, 4, 5. 
+Once the structure has been passed to the library it is ready to accept commands.
+
+NOTE: The library pre-allocates interrupt service routines for all available 16 bit
+timers. This means that you can't use the ISR(TIMERn_CMPn_vect) or it will conflict
+with the library. However you can dynamically link your own interrupt handler through
+the 'addTimerCallBack' function (see examples).
 
 ### TODO
 
@@ -44,9 +66,8 @@ Your sketch should now have "#include <jStepper.h>". If not add it manually.
 
 ### DISCLAIMER 
 
-This code is functional and all features work but it is a work-in-progress. 
-In low performance embedded systems unique solutions are required to meet 
-performance goals. Some of my methods are unorthodox but they get the 
-job done. 
-I welcome suggestions for improvement.
+This code is functional and all features work but it is a work-in-progress. I 
+welcome your suggestions for improvement.
+
+
 
