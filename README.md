@@ -20,7 +20,7 @@ step pulses and plan ahead to the next step pulse.
 8) Interrupt driven step engine doesn't require user program intervention.
 9) Non blocking allows multi-tasking.
 10) Dynamic I/O and Timer ISR assignment.
-11) Fast I/O functions available to our program.
+11) Fast I/O functions available to your program. See the jsio.h file.
 
 ### HARDWARE
 
