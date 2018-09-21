@@ -16,17 +16,17 @@ step pulses and plan ahead to the next step pulse.
 5) Constant speed mode (square profile).
 5) Real time linear acceleration (trapeziod & triangle profiles).
 6) Syncronize motors to arrive at the destination at the same time.
-7) Primitive functions for stepping & endstop detection (homing).
+7) Primitive functions for single stepping & endstop detection (homing).
 8) Interrupt driven step engine doesn't require user program intervention.
-9) Non blocking allows multi-tasking.
+9) Non blocking allows true multi-tasking.
 10) Dynamic I/O and Timer ISR assignment.
 11) Fast I/O functions available to your program. See the jsio.h file.
 
 ### HARDWARE
 
-The general hardware model is an Arduino board with a shield containing
-stepper driver modules. This is very similar to the popular RAMPS architecture.
-This library will also work with hybrids such as the Rambo.
+The general hardware model is an Arduino (or similar) ATMega board with a shield 
+containing stepper driver modules. This is very similar to the popular RAMPS architecture.
+This library will also work with hybrids such as the Rambo and others.
 
 The code generates STEP and DIRECTION signals in real time. 
 The user supplies control pin information via a template structure.
