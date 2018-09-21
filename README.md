@@ -2,10 +2,8 @@
 
 Arduino high performance stepper library for ATMega boards. 
 
-Each instance of the library can control 3 motors. This is determined 
-by the architecture of the AVR 16 bit timers which feature 3 independent 
-compare interrupts. Each motor uses one of the compare outputs to generate 
-step pulses and plan ahead to the next step pulse.
+The library is targeted for the Arduino ATMega family but can be adapted
+to many other embedded systems. 
 
 ### FEATURES
 
