@@ -5,7 +5,7 @@
 #include "jStepper.h"
 
 
-//###############################################################
+//###################################################################
 // made these macros to inline code and avoid overhead
 // of a function call
 //
@@ -35,13 +35,20 @@
 		break; \
 	} }while(0)
 
+	// *** Timer ISR dynamic allocation ***
+	// Each instance of the library will claim one timer and install it's instance in
+	// one of these object pointers. This is how the ISR redirects to the correct instance.
+	// If the pointer is NULL and an interrupt occurs the isrRedirectArray is checked
+	// for a user installed external handler. If no pointer, the interrupt simply returns.
+	//
     jStepper *psPtr_1 = NULL;
     jStepper *psPtr_3 = NULL;
     jStepper *psPtr_4 = NULL;
     jStepper *psPtr_5 = NULL;
 
-    typedef void(*functPtr)();
-    jStepper *isrRedirectObj = NULL;
+    typedef void(*functPtr)();			// typedef a void func pointer
+    jStepper *isrRedirectObj = NULL;	// owner will be the first lib instance
+    // array used to store user supplied external interrupt handlers
     static functPtr isrRedirectArray[12] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 //###################################################################
@@ -51,7 +58,6 @@ jStepper::jStepper(void)
 {
 	// nothing much to do here
 }
-
 
 
 //###################################################################
@@ -106,7 +112,8 @@ uint32_t jStepper::begin(jsMotorConfig mC)
 	PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MAX_1_PIN);
 	PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MAX_2_PIN);
 
-	// dynamic timer allocation
+	// this is where the timer regs are dynamically allocated
+	// based on user selected timer: 1, 3, 4, or 5
 	switch(_mConfig.TIMER_SELECT)
 	{
 		case TIMER_SEL_1:
@@ -181,7 +188,7 @@ uint32_t jStepper::begin(jsMotorConfig mC)
 }
 
 
-//###############################################################
+//###################################################################
 // setAcceleration()
 //
 void jStepper::setAcceleration(float acc0, float acc1, float acc2)
@@ -198,7 +205,7 @@ void jStepper::setAcceleration(float acc0, float acc1, float acc2)
 }
 
 
-//###############################################################
+//###################################################################
 // getAcceleration()
 //
 float jStepper::getAcceleration(uint8_t motorNum)
@@ -220,7 +227,7 @@ float jStepper::getAcceleration(uint8_t motorNum)
 	return -1;
 }
 
-//###############################################################
+//###################################################################
 //
 // set motor speed in mm / sec.
 void jStepper::setSpeed(float speed0, float speed1, float speed2)   // speed in mm/sec
@@ -242,7 +249,7 @@ void jStepper::setSpeed(float speed0, float speed1, float speed2)   // speed in 
 }
 
 
-//###############################################################
+//###################################################################
 //
 float jStepper::getSpeed(uint8_t motorNum)
 {
@@ -264,7 +271,7 @@ float jStepper::getSpeed(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
 // set motor speed in mm / sec.
 void jStepper::setMaxSpeed(float maxSpeed0, float maxSpeed1, float maxSpeed2)   // speed in mm/sec
@@ -286,7 +293,7 @@ void jStepper::setMaxSpeed(float maxSpeed0, float maxSpeed1, float maxSpeed2)   
 }
 
 
-//###############################################################
+//###################################################################
 //
 float jStepper::getMaxSpeed(uint8_t motorNum)
 {
@@ -308,7 +315,7 @@ float jStepper::getMaxSpeed(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
 // returns true if motors are running
 //
@@ -329,7 +336,7 @@ bool jStepper::isRunning(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::quickStop(uint8_t motorNum) 
 {
@@ -351,12 +358,29 @@ void jStepper::quickStop(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
-uint8_t jStepper::setPosition(float pos0, float pos1, float pos2)
+// setPosition() does all planning for motor movement, syncronization,
+// and acceleration profiles.
+//
+uint8_t jStepper::setPosition(float pos0, float pos1, float pos2, bool mSync)
 {
+	bool swap;
+	uint32_t i;
+	uint32_t startT;
+	uint32_t endT;
+	uint32_t rampSteps;
+	uint32_t sTot = 0;
+	uint32_t tTot;
+	bool nothingToDo = true;
+	float fr;
 	uint8_t ecode = ERR_NONE;
-	
+	union {
+	   uint16_t val16[2];
+	   uint32_t val32;
+	}pun;
+
+	// do a sanity check on new position values
     if(pos0 < mBlocks[MOTOR_0].minPosition || pos0 > mBlocks[MOTOR_0].maxPosition)
     	ecode = ERR_OUTSIDE_BOUNDARY;
     else 
@@ -372,11 +396,236 @@ uint8_t jStepper::setPosition(float pos0, float pos1, float pos2)
     else 
     	mBlocks[MOTOR_2].newPosition = pos2;    
     
-    return ecode;
+    if(ecode != ERR_NONE)
+    	return ecode;
+
+    //
+	// iterate through all motors
+    //
+	for (i = 0; i < NUM_MOTORS; i++)
+	{
+		//
+		// calc number of steps & direction of movement
+		//
+        fr = mBlocks[i].newPosition - mBlocks[i].curPosition;
+		if (fr >= 0.0)
+			setDirection(i, MOTOR_DIRECTION_IN);
+		else
+			setDirection(i, MOTOR_DIRECTION_OUT);
+
+        fr = fabs(fr);	// use positive num
+		mBlocks[i].numSteps = round(fr * mBlocks[i].stepsPerMM);
+		mBlocks[i].cruiseSteps = mBlocks[i].numSteps; 	// initialize cruise steps
+		mBlocks[i].mAction = STEP_DONE;					// clear action
+
+		if (mBlocks[i].numSteps > 0)
+		{
+			nothingToDo = false;				// not nothin!
+
+			//
+			// calc feedrate and duration
+			//
+			fr = roundf(mBlocks[i].speed * mBlocks[i].stepsPerMM);   // calc cruise rate in PPS
+			mBlocks[i].cruiseRate = (fr > MAX_CRUISE_RATE) ? MAX_CRUISE_RATE : fr;
+			mBlocks[i].cruiseInterval = (1.0 / mBlocks[i].cruiseRate) * ONE_MILLION;
+			mBlocks[i].cruiseReload = mBlocks[i].cruiseInterval;
+			mBlocks[i].startInterval = mBlocks[i].cruiseInterval;
+
+			//
+			// calculate duration of movement
+			//
+			mBlocks[i].totalTime = uint32_t(mBlocks[i].cruiseInterval) * uint32_t(mBlocks[i].numSteps);
+		}
+		else	// no movement on this motor
+		{
+			mBlocks[i].totalTime = 0;
+			mBlocks[i].cruiseRate = 0;
+			mBlocks[i].cruiseInterval = 0;
+			mBlocks[i].cruiseReload = 0;
+		}
+	}
+
+	// bounce if no movements
+	if (nothingToDo)
+		return ERR_NONE;    // tell caller nothing to do
+
+	//***************************************************************
+	// Prepare for motor synchronization.
+	//
+	// Find the motor with the longest movement (distance * speed) and
+	// adjust the speed of the other motors to match duration.
+	//
+	// Use bubble sort to organize longest duration first.
+	//
+	for (i = ISRA; i < NUM_MOTORS; i++)
+	{
+		_sort[i] = i; 	// default ISR assignment motor 0,1,2
+	}
+
+	do {
+		swap = false;
+		for (i = MOTOR_0; i < NUM_MOTORS - 1; i++) {
+			if (mBlocks[_sort[i]].totalTime < mBlocks[_sort[i + 1]].totalTime)
+			{
+				uint16_t b = _sort[i];
+				_sort[i] = _sort[i + 1];
+				_sort[i + 1] = b;
+				swap = true;
+			}
+		}
+	} while (swap);
+
+	//***************************************************************
+	// Calculate accel / decel profiles
+	//
+	// If mSync (synchronize motor movements) is true,
+	// modify speeds of shorter duration movements to match motor with
+	// longest duration.
+	//
+	for (i = ISRA; i < NUM_MOTORS; i++)
+	{
+		if (mBlocks[_sort[i]].numSteps > 0)
+		{
+			//
+			// motor needs acceleration profile if acceleration > 0 and
+			// target cruise speed is fast enough to need it.
+			//
+			if(mBlocks[_sort[i]].acceleration > 0.0 && mBlocks[_sort[i]].cruiseRate >= MOTOR_START_SPEED)
+			{
+				//
+				// calc interval of first step based on acceleration
+				//
+				mBlocks[_sort[i]].startInterval = ONE_MILLION / sqrt(2.0 * mBlocks[_sort[i]].acceleration);
+				NOTMORE(mBlocks[_sort[i]].startInterval, MAX_ACCEL_INTERVAL);  // accel upper bound
+
+				//
+				// calc total duration including accel / decel slopes
+				//
+				mBlocks[_sort[i]].totalTime = 0;
+				mBlocks[_sort[i]].rampTime = 0;
+				startT = uint32_t(mBlocks[_sort[i]].startInterval);
+				endT = uint32_t(mBlocks[_sort[i]].cruiseInterval);
+				sTot = 0;
+				tTot = 0;
+
+				// iterative loop to get sum of ramp intervals and
+				// number of steps from start to cruise speed.
+				// Brute force yes, but it works ;>)
+				//
+				for(rampSteps=0; rampSteps<LOOKUP_TBL_SIZE; rampSteps++)
+				{
+					//
+					// need to accumulate sum of ramp intervals to calc new
+					// speed on-the-fly
+					//
+					CALC_ACCEL(pun.val32, mBlocks[_sort[i]].startInterval, rampSteps+1);
+					startT = pun.val16[1];
+
+					if(startT <= endT)	// all done if we have reached the desired cruising speed
+						break;
+
+					sTot += startT;
+					//
+					// stretch shorter duration movements to match longest
+					// duration. Cruise speed constantly tweaked while building the ramp.
+					//
+					if(i != ISRA && mSync)  // only motors with shorter durations allowed in here
+					{
+						//
+						// calc duration of cruise steps ---
+						//
+						tTot = uint32_t(mBlocks[_sort[i]].cruiseSteps) - ((rampSteps+1) * 2);
+						tTot *= (endT);
+						//
+						// --- plus accumulated ramp time
+						//
+						tTot += (sTot * 2);
+						//
+						// compare ratio of current duration to longest
+						//
+						fr = float(mBlocks[_sort[ISRA]].totalTime) / float(tTot);
+						//
+						// keep tweaking until...
+						//
+ 						endT *= fr;
+					}
+					//
+					// If movement is short it may never reach cruise speed
+					// resulting in a triangular trajectory.
+					//
+					if(((rampSteps+1) * 2) >= mBlocks[_sort[i]].cruiseSteps)
+						break;
+				}
+
+				//
+				// new cruise speed in 'endT'
+				//
+				mBlocks[_sort[i]].cruiseInterval = endT;
+				mBlocks[_sort[i]].cruiseReload = endT;
+				mBlocks[_sort[i]].cruiseRate = (1.0 / endT) * ONE_MILLION;
+
+				//
+				// If new speed is slow and doesn't need accel, kill
+				// accel profile and go with constant speed (square) profile
+				//
+				if(mBlocks[_sort[i]].cruiseRate < MOTOR_START_SPEED)
+				{
+					mBlocks[_sort[i]].rampSteps = 0;
+					fr = float(mBlocks[_sort[ISRA]].totalTime) /
+							float(mBlocks[_sort[i]].numSteps);
+					mBlocks[_sort[i]].cruiseInterval = round(fr);
+					mBlocks[_sort[i]].cruiseReload = mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].startInterval = mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].numSteps * mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].cruiseRate = (1.0 / float(mBlocks[_sort[i]].cruiseInterval)) * ONE_MILLION;
+				}
+				else    // still have accel - deal with ramp & cruise steps
+				{
+					//
+					// handle odd numbered steps
+					//
+					if((rampSteps << 1) > mBlocks[_sort[i]].cruiseSteps)
+						rampSteps--;
+					mBlocks[_sort[i]].rampSteps	= rampSteps;
+					mBlocks[_sort[i]].cruiseSteps -= (rampSteps * 2);
+					mBlocks[_sort[i]].rampTime = sTot;
+					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].rampTime * 2;	// accel + decel
+					mBlocks[_sort[i]].totalTime += (uint32_t(mBlocks[_sort[i]].cruiseSteps) *
+							uint32_t(mBlocks[_sort[i]].cruiseInterval));
+				}
+			}
+			//
+			// constant cruise speed here
+			//
+			else
+			{
+				mBlocks[_sort[i]].rampSteps = 0;
+				//
+				// sync movement durations here
+				//
+				if(mSync && (i != ISRA))
+				{
+					//
+					// compare ratio of longest duration to this duration
+					//
+					fr = float(mBlocks[_sort[ISRA]].totalTime) /
+							float(mBlocks[_sort[i]].numSteps);
+					//
+					// apply ratio to this movement
+					//
+					mBlocks[_sort[i]].cruiseInterval = round(fr);
+					mBlocks[_sort[i]].cruiseReload = mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].startInterval = mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].numSteps * mBlocks[_sort[i]].cruiseInterval;
+					mBlocks[_sort[i]].cruiseRate = (1.0 / float(mBlocks[_sort[i]].cruiseInterval)) * ONE_MILLION;
+				}
+			}
+		}
+	}
 }
 
 
-//###############################################################
+//###################################################################
 //
 float jStepper::getPosition(uint8_t motorNum)
 {
@@ -387,7 +636,7 @@ float jStepper::getPosition(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 // setMinPosition() sets min position for the given motor
 //
 void jStepper::setMinPosition(float minPos0, float minPos1, float minPos2) 
@@ -398,8 +647,8 @@ void jStepper::setMinPosition(float minPos0, float minPos1, float minPos2)
 }
   
 
-//###############################################################
-// returns 0 if error
+//###################################################################
+// returns -1 if error
 float jStepper::getMinPosition(uint8_t motorNum)
 {
 	if(motorNum >= NUM_MOTORS)
@@ -409,7 +658,7 @@ float jStepper::getMinPosition(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 // setMaxPosition() sets max position for the given motor
 //
 void jStepper::setMaxPosition(float maxPos0, float maxPos1, float maxPos2) 
@@ -420,7 +669,7 @@ void jStepper::setMaxPosition(float maxPos0, float maxPos1, float maxPos2)
 }
 
 
-//###############################################################
+//###################################################################
 // returns -1 if error
 //
 float jStepper::getMaxPosition(uint8_t motorNum)
@@ -432,7 +681,7 @@ float jStepper::getMaxPosition(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::setDirection(uint8_t motorNum, uint8_t dir)
 {
@@ -462,7 +711,7 @@ void jStepper::setDirection(uint8_t motorNum, uint8_t dir)
 }
 
 
-//###############################################################
+//###################################################################
 //
 uint8_t jStepper::getDirection(uint8_t motorNum)
 {
@@ -493,7 +742,7 @@ uint8_t jStepper::getDirection(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::setEnabled(uint8_t motorNum, bool enab)
 {
@@ -523,7 +772,7 @@ void jStepper::setEnabled(uint8_t motorNum, bool enab)
 }
 
 
-//###############################################################
+//###################################################################
 //
 bool jStepper::isEnabled(uint8_t motorNum)
 {
@@ -545,8 +794,8 @@ bool jStepper::isEnabled(uint8_t motorNum)
 }
 
 
-//###############################################################
-// move motor one step towards setDirection()
+//###################################################################
+// move motor one step towards the last setDirection() call
 //
 uint8_t jStepper::stepMotor(uint8_t motorNum)
 {
@@ -561,7 +810,7 @@ uint8_t jStepper::stepMotor(uint8_t motorNum)
 }
 
 
-//###############################################################
+//###################################################################
 // returns true if endstop detected
 //
 bool jStepper::atMinEndStop(uint8_t motorNum) {
@@ -583,7 +832,7 @@ bool jStepper::atMinEndStop(uint8_t motorNum) {
 }
 
 
-//###############################################################
+//###################################################################
 // returns true if endstop detected
 //
 bool jStepper::atMaxEndStop(uint8_t motorNum) {
@@ -605,7 +854,7 @@ bool jStepper::atMaxEndStop(uint8_t motorNum) {
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::setPositionKnown(uint8_t motorNum, bool known)
 {
@@ -620,7 +869,7 @@ void jStepper::setPositionKnown(uint8_t motorNum, bool known)
 }
 
 
-//###############################################################
+//###################################################################
 //
 uint8_t jStepper::isPositionKnown(uint8_t motorNum)
 {
@@ -631,16 +880,7 @@ uint8_t jStepper::isPositionKnown(uint8_t motorNum)
 }
 
 
-
-//###############################################################
-//
-static void jStepper::deadbeef(void)
-{
-	// hollow shell only returns
-}
-
-
-//###############################################################
+//###################################################################
 //
 void jStepper::timerISRA(void)
 {
@@ -715,7 +955,7 @@ void jStepper::timerISRA(void)
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::timerISRB(void)
 {
@@ -788,7 +1028,7 @@ void jStepper::timerISRB(void)
 }
 
 
-//###############################################################
+//###################################################################
 //
 void jStepper::timerISRC(void)
 {
@@ -862,339 +1102,106 @@ void jStepper::timerISRC(void)
 
  
 
-//###############################################################
+//###################################################################
 // runMotors() - The main attraction!!!
 //
-// Positions are set using setPosition().
+// Motor movement planning is done in setPosition().
 //
-// Motor driver should be enabled via 'setEnable()' prior to
+// Motor driver should have been enabled via 'setEnable()' prior to
 // calling here.
 //
-// 'mSync' if true, synchronizes motor movement durations. This 
-// happens even if using acceleration profile.
 //
-//###############################################################
+//###################################################################
 //
-uint8_t jStepper::runMotors(bool mSync)
+uint8_t jStepper::runMotors(void)
 {
-	bool swap;
-	uint32_t i;
-	uint32_t startT;
-	uint32_t endT;
-	uint32_t rampSteps;
-	uint32_t sTot = 0;
-	uint32_t tTot;
-	bool nothingToDo = true;
-	float fr;
-	union {
-	   uint16_t val16[2];
-	   uint32_t val32;
-	}pun;
-
-	if(isRunning(MOTOR_ALL))
+	if(isRunning(MOTOR_ALL))		// exit if any motors are still running
 		return ERR_MOTORS_RUNNING;
 
-	// iterate through all motors
-	for (i = 0; i < NUM_MOTORS; i++)
-	{
-                // TODO: resolve relative and absolute positioning.
-		//
-		// calc number of steps & direction
-		//
-        fr = mBlocks[i].newPosition - mBlocks[i].curPosition;
-		if (fr >= 0.0)
-			setDirection(i, MOTOR_DIRECTION_IN);
-		else
-			setDirection(i, MOTOR_DIRECTION_OUT);
-        
-        fr = fabs(fr);
-		mBlocks[i].numSteps = round(fr * mBlocks[i].stepsPerMM);
-		mBlocks[i].cruiseSteps = mBlocks[i].numSteps; // initialize cruise steps
-        mBlocks[i].curPosition = mBlocks[i].newPosition; // update cur position
-
-		if (mBlocks[i].numSteps > 0)
-		{
-			mBlocks[i].mAction = STEP_CRUISE;
-			nothingToDo = false;
-
-			//
-			// calc feedrate and duration
-			//
-			fr = roundf(mBlocks[i].speed * mBlocks[i].stepsPerMM);   // calc cruise rate in PPS
-			mBlocks[i].cruiseRate = (fr > MAX_CRUISE_RATE) ? MAX_CRUISE_RATE : fr;
-			mBlocks[i].cruiseInterval = (1.0 / mBlocks[i].cruiseRate) * ONE_MILLION;
-			mBlocks[i].cruiseReload = mBlocks[i].cruiseInterval;
-			mBlocks[i].startInterval = mBlocks[i].cruiseInterval;
-
-			//
-			// calculate duration of movement
-			//
-			mBlocks[i].totalTime = uint32_t(mBlocks[i].cruiseInterval) * uint32_t(mBlocks[i].numSteps);
-		}
-		else	// no movement on this motor
-		{
-			mBlocks[i].mAction = STEP_DONE;
-			mBlocks[i].totalTime = 0;
-			mBlocks[i].cruiseRate = 0;
-			mBlocks[i].cruiseInterval = 0;
-			mBlocks[i].cruiseReload = 0;
-		}
-	}
-	// bounce if no movements
-	if (nothingToDo)
-		return true;    // tell caller nothing to do
-
 	//***************************************************************
-	// Prepare for motor synchronization.
-	//
-	// Find the motor with the longest movement (distance * speed) and 
-	// adjust the feedrate of the other motors to match duration.
-	//
-	// Use bubble sort to organize longest duration first.
-	//
-	for (i = ISRA; i < NUM_MOTORS; i++)
-	{
-		_sort[i] = i; 	// default ISR assignment motor 0,1,2
-	}
-
-	do {
-		swap = false;
-		for (i = MOTOR_0; i < NUM_MOTORS - 1; i++) {
-			if (mBlocks[_sort[i]].totalTime < mBlocks[_sort[i + 1]].totalTime)
-			{
-				uint16_t b = _sort[i];
-				_sort[i] = _sort[i + 1];
-				_sort[i + 1] = b;
-				swap = true;
-			}
-		}
-	} while (swap);
-	
-	
-	//***************************************************************
-	// Calculate accel / decel profiles
-	//
-	// If mSync (synchronize motor movements) is true,
-	// modify speeds to match motor with longest duration
-	//
-	for (i = ISRA; i < NUM_MOTORS; i++)
-	{
-		if (mBlocks[_sort[i]].numSteps > 0)
-		{
-			//
-			// motor needs acceleration profile if acceleration > 0 and
-			// target cruise speed is fast enough to need it.
-			//
-			if(mBlocks[_sort[i]].acceleration > 0.0 && mBlocks[_sort[i]].cruiseRate >= MOTOR_START_SPEED)
-			{
-				// calc first step interval
-				mBlocks[_sort[i]].startInterval = ONE_MILLION / sqrt(2.0 * mBlocks[_sort[i]].acceleration);
-				NOTMORE(mBlocks[_sort[i]].startInterval, MAX_ACCEL_INTERVAL);  // accel upper bound
-
-				// calc total duration including accel / decel slopes
-				mBlocks[_sort[i]].totalTime = 0;
-				mBlocks[_sort[i]].rampTime = 0;
-				startT = uint32_t(mBlocks[_sort[i]].startInterval);
-				endT = uint32_t(mBlocks[_sort[i]].cruiseInterval);
-				sTot = 0;
-				tTot = 0;
-				// iterative loop to get sum of ramp intervals and
-				// number of steps from start to cruise speed.
-				// Brute force yes, but it works ;>)
-				for(rampSteps=0; rampSteps<LOOKUP_TBL_SIZE; rampSteps++)
-				{
-					// sum ramp intervals
-					//Serial.print("nextI=");
-					//Serial.println(startT);
-					CALC_ACCEL(pun.val32, mBlocks[_sort[i]].startInterval, rampSteps+1);
-					startT = pun.val16[1];
-					if(startT <= endT)
-						break;
-                  
-					sTot += startT;
-                     
-					// stretch shorter duration motors to match longest
-					// duration. cruise speed must be adjusted on the fly
-					// while building the ramp. Couldn't find a better
-					// solution...
-					if(i != ISRA && mSync)  // only motors with shorter durations
-					{
-						// adjust cruise speed on the fly
-						// get sum of cruise intervals
-						tTot = uint32_t(mBlocks[_sort[i]].cruiseSteps) - ((rampSteps+1) * 2);   
-						tTot *= (endT);
-						// plus accumulated ramp time
-						tTot += (sTot * 2);
-						// get ratio of this duration to longest 
-						fr = float(mBlocks[_sort[ISRA]].totalTime) / float(tTot);		
-						// keep tweaking until...
- 						endT *= fr;
-					}
-					// If movement is short it may never reach cruise speed
-					// resulting in a triangular trajectory.
-					if(((rampSteps+1) * 2) >= mBlocks[_sort[i]].cruiseSteps)
-						break;
-				}
-				
-				// might have new cruise speed in 'endT'
-				mBlocks[_sort[i]].cruiseInterval = endT;
-				mBlocks[_sort[i]].cruiseReload = endT;
-				mBlocks[_sort[i]].cruiseRate = (1.0 / endT) * ONE_MILLION;
-
-				// if new speed is slow and doesn't need accel, we
-				// kill accel profile and go with constant speed profile
-				if(mBlocks[_sort[i]].cruiseRate < MOTOR_START_SPEED)
-				{
-					mBlocks[_sort[i]].rampSteps = 0;
-					fr = float(mBlocks[_sort[ISRA]].totalTime) /
-							float(mBlocks[_sort[i]].numSteps);
-					mBlocks[_sort[i]].cruiseInterval = round(fr);
-					mBlocks[_sort[i]].cruiseReload = mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].startInterval = mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].numSteps * mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].cruiseRate = (1.0 / float(mBlocks[_sort[i]].cruiseInterval)) * ONE_MILLION;
-				}
-				else    // still have accel - deal with ramp & cruise steps
-				{
-					// handle odd numbered steps
-					if((rampSteps << 1) > mBlocks[_sort[i]].cruiseSteps)
-						rampSteps--;
-					mBlocks[_sort[i]].rampSteps	= rampSteps;
-					mBlocks[_sort[i]].cruiseSteps -= (rampSteps * 2);
-					mBlocks[_sort[i]].rampTime = sTot;
-					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].rampTime * 2;	// accel + decel
-					mBlocks[_sort[i]].totalTime += (uint32_t(mBlocks[_sort[i]].cruiseSteps) *
-							uint32_t(mBlocks[_sort[i]].cruiseInterval));
-				}
-			}
-			//
-			// constant cruise speed here
-			//
-			else
-			{
-				mBlocks[_sort[i]].rampSteps = 0;
-				// sync motor durations here
-				if(mSync && (i != ISRA))
-				{
-					// calc ratio of longest duration to this duration
-					fr = float(mBlocks[_sort[ISRA]].totalTime) /
-							float(mBlocks[_sort[i]].numSteps);
-					// apply ratio to match duration
-					mBlocks[_sort[i]].cruiseInterval = round(fr);
-					mBlocks[_sort[i]].cruiseReload = mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].startInterval = mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].totalTime = mBlocks[_sort[i]].numSteps * mBlocks[_sort[i]].cruiseInterval;
-					mBlocks[_sort[i]].cruiseRate = (1.0 / float(mBlocks[_sort[i]].cruiseInterval)) * ONE_MILLION;
-				}
-			}
-
-			// prepare profile state
-			mBlocks[_sort[i]].mAction = (mBlocks[_sort[i]].rampSteps > 0) ? STEP_ACCEL : STEP_CRUISE;
-			mBlocks[_sort[i]].rampStepCount = 0;
-		}
-	}
-    
-   	            
-	//***************************************************************
-	// kick off the timer
-	//
-	// set up timer 1 for 10usec step pulse gen
+	// Set up timer regs and compare interrupts.
 	//
 	cli();
 	TCCRA = 0x00; 		// stop the timer
 	TCCRB = 0x00;  	
 	TIMSK = 0x00; 
 
-   if(mBlocks[MOTOR_0].numSteps > 0) 
-   {
-	   if(mBlocks[MOTOR_0].cruiseInterval > 32767)   
-	   {
-		   mBlocks[MOTOR_0].mAction = STEP_LONG;  // set mode for long step intervals
-		   OCRA = ((mBlocks[MOTOR_0].cruiseInterval & 0x7FFF) << 1);  // interrupt delay in usec *2
-	   }
-	   else
-		   OCRA = (mBlocks[MOTOR_0].startInterval << 1);    // interrupt delay in usec *2
-	  
-	   SETb(TIMSK, OCIEA);	// enable compare A interrupt
-	   SETb(TIFR, OCFA);   	// clear any pending interrupts
-   }
-   
-   if(mBlocks[MOTOR_1].numSteps > 0) 
-   {
-	   if(mBlocks[MOTOR_1].cruiseInterval > 32767)   
-	   {
-		   mBlocks[MOTOR_1].mAction = STEP_LONG;  // set mode for long step intervals  
-		   OCRB = ((mBlocks[MOTOR_1].cruiseInterval & 0x7FFF) << 1);  
-	   }
-	   else
-		   OCRB = (mBlocks[MOTOR_1].startInterval << 1);    // interrupt delay in usec *2
-
-	   SETb(TIMSK, OCIEB);	// enable compare A interrupt
-	   SETb(TIFR, OCFB);   	// clear any pending interrupts
-   }
-   
-   if(mBlocks[MOTOR_2].numSteps > 0) 
-   {
-	   if(mBlocks[MOTOR_2].cruiseInterval > 32767)   
-	   {
-		   mBlocks[MOTOR_2].mAction = STEP_LONG;  // special mode for long step intervals
-		   OCRC = ((mBlocks[MOTOR_2].cruiseInterval & 0x7FFF) << 1);      
-	   }
-	   else   
-		   OCRC = (mBlocks[MOTOR_2].startInterval << 1);    // interrupt delay in usec *2
-
-	   SETb(TIMSK, OCIEC);	// enable compare A interrupt
-	   SETb(TIFR, OCFC);   	// clear any pending interrupts
-   }   
-
-   TCNT = 0x00;				// start the timer running
-   TCCRB = 0x02; 
-   sei();
-   return false;
-}
-
-
-//***************************************************************
-// used to build lookup tables
-//
-void jStepper::genLookupTable(void) {
-
-//
-// set up initial parameters
-//
-float F = ONE_MILLION;
-float acc = 100000;
-// this is how _c0 is usually initialized
-//uint32_t _c0 = round(0.676 * sqrt(2.0 / acc) * F); 
-// but for this function _c0 is set to the outer bound
-uint32_t _c0 = 32768;
-uint32_t cruiseInt = 50;
-uint32_t _cn;
-float _magic = 65535;
-uint32_t i;
-
-   _cn = _c0;
-
-	for(i=1; i<=1000; i++) 
+	// Load timer compare regs with the starting interval
+	// An interrupt from the compare match will generate step pulses
+	// and calc subsequent intervals.
+	if(mBlocks[MOTOR_0].numSteps > 0)
 	{
-      Serial.print(uint32_t(_magic));
-		Serial.print(", ");
-		if(i % 10 == 0)
-			Serial.println("");
+		//
+		// prepare ISR state machine for this motor
+		//
+		mBlocks[MOTOR_0].curPosition = mBlocks[MOTOR_0].newPosition; // can update cur position now
+		mBlocks[MOTOR_0].mAction = (mBlocks[MOTOR_0].rampSteps > 0) ? STEP_ACCEL : STEP_CRUISE;
+		mBlocks[MOTOR_0].rampStepCount = 0;
 
-      _cn = _cn - ((2.0 * _cn) / ((4.0 * i) + 1)); 
-      _cn *=  float(1.0 - (i / 82000.0));     // build S curve at the end of the ramp
-      
-      _magic = float(_cn) / float(_c0);
-      _magic = uint32_t(65536.0 * _magic);
-
-      if(_cn < cruiseInt)
-         break;
+		// check if step pulse duration is longer than one timer cycle
+		if(mBlocks[MOTOR_0].cruiseInterval > 32767)
+		{
+			mBlocks[MOTOR_0].mAction = STEP_LONG;  // set mode for long step intervals
+			OCRA = ((mBlocks[MOTOR_0].cruiseInterval & 0x7FFF) << 1);  // interrupt delay in usec *2
+		}
+		else
+			OCRA = (mBlocks[MOTOR_0].startInterval << 1);    // interrupt delay in usec *2
+	  
+		SETb(TIMSK, OCIEA);		// enable compare A interrupt
+		SETb(TIFR, OCFA);   	// clear any pending interrupts
 	}
+   
+	if(mBlocks[MOTOR_1].numSteps > 0)
+	{
+		//
+		// prepare ISR state machine for this motor
+		//
+		mBlocks[MOTOR_1].curPosition = mBlocks[MOTOR_1].newPosition; // can update cur position now
+		mBlocks[MOTOR_1].mAction = (mBlocks[MOTOR_1].rampSteps > 0) ? STEP_ACCEL : STEP_CRUISE;
+		mBlocks[MOTOR_1].rampStepCount = 0;
+
+		if(mBlocks[MOTOR_1].cruiseInterval > 32767)
+		{
+			mBlocks[MOTOR_1].mAction = STEP_LONG;  // set mode for long step intervals
+			OCRB = ((mBlocks[MOTOR_1].cruiseInterval & 0x7FFF) << 1);
+		}
+		else
+			OCRB = (mBlocks[MOTOR_1].startInterval << 1);    // interrupt delay in usec *2
+
+		SETb(TIMSK, OCIEB);		// enable compare B interrupt
+		SETb(TIFR, OCFB);   	// clear any pending interrupts
+	}
+   
+	if(mBlocks[MOTOR_2].numSteps > 0)
+	{
+		//
+		// prepare ISR state machine for this motor
+		//
+		mBlocks[MOTOR_2].curPosition = mBlocks[MOTOR_2].newPosition; // can update cur position now
+		mBlocks[MOTOR_2].mAction = (mBlocks[MOTOR_2].rampSteps > 0) ? STEP_ACCEL : STEP_CRUISE;
+		mBlocks[MOTOR_2].rampStepCount = 0;
+
+		if(mBlocks[MOTOR_2].cruiseInterval > 32767)
+		{
+			mBlocks[MOTOR_2].mAction = STEP_LONG;  // special mode for long step intervals
+			OCRC = ((mBlocks[MOTOR_2].cruiseInterval & 0x7FFF) << 1);
+		}
+		else
+			OCRC = (mBlocks[MOTOR_2].startInterval << 1);    // interrupt delay in usec *2
+
+		SETb(TIMSK, OCIEC);		// enable compare C interrupt
+		SETb(TIFR, OCFC);   	// clear any pending interrupts
+	}
+
+	// start the selected timer in free running (normal) mode with 2Mhz clock
+	TCNT = 0x00;
+	TCCRB = 0x02;
+	sei();
+	return ERR_NONE;
 }
 
 
-//***************************************************************
+//*******************************************************************
 //
 void jStepper::addTimerCallBack(uint8_t whichTimerInt, void *p)
 {
@@ -1203,26 +1210,29 @@ void jStepper::addTimerCallBack(uint8_t whichTimerInt, void *p)
 }
 
 
-//***************************************************************
+//*******************************************************************
 void jStepper::isrRedirect(uint8_t whichTimerInt)
 {
 	if(isrRedirectArray[whichTimerInt] != NULL)		// ptr NULL?
 		(*(isrRedirectArray[whichTimerInt]))();		// if not call external isr handler
 }
 
+//###################################################################
+// Interrupt vectors for all timers
+//###################################################################
 
-//***************************************************************
-// interrupt handlers for timer.
+//*******************************************************************
 //
 ISR(TIMER1_COMPA_vect)
 {
 	if(psPtr_1)
-		psPtr_1->timerISRA();
+		psPtr_1->timerISRA();	// call instance member function
 	else
-		isrRedirectObj->isrRedirect(TMR_1_CMPA);
+		isrRedirectObj->isrRedirect(TMR_1_CMPA);	// else call user installed function
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
 ISR(TIMER1_COMPB_vect)
 {
@@ -1232,9 +1242,10 @@ ISR(TIMER1_COMPB_vect)
 		isrRedirectObj->isrRedirect(TMR_1_CMPB);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
-ISR(TIMER1_COMPC_vect)        // interrupt service routine
+ISR(TIMER1_COMPC_vect)
 {
 	if(psPtr_1)
 		psPtr_1->timerISRC();
@@ -1243,7 +1254,7 @@ ISR(TIMER1_COMPC_vect)        // interrupt service routine
 }
 
 
-//***************************************************************
+//*******************************************************************
 //
 ISR(TIMER3_COMPA_vect)
 {
@@ -1253,7 +1264,8 @@ ISR(TIMER3_COMPA_vect)
 		isrRedirectObj->isrRedirect(TMR_3_CMPA);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
 ISR(TIMER3_COMPB_vect)
 {
@@ -1263,9 +1275,10 @@ ISR(TIMER3_COMPB_vect)
 		isrRedirectObj->isrRedirect(TMR_3_CMPB);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
-ISR(TIMER3_COMPC_vect)        // interrupt service routine
+ISR(TIMER3_COMPC_vect)
 {
 	if(psPtr_3)
 		psPtr_3->timerISRC();
@@ -1274,8 +1287,7 @@ ISR(TIMER3_COMPC_vect)        // interrupt service routine
 }
 
 
-//***************************************************************
-// interrupt handler for timer. 
+//*******************************************************************
 //
 ISR(TIMER4_COMPA_vect)
 {
@@ -1286,7 +1298,7 @@ ISR(TIMER4_COMPA_vect)
 }
 
 
-//***************************************************************
+//*******************************************************************
 // 
 ISR(TIMER4_COMPB_vect)
 {
@@ -1296,9 +1308,10 @@ ISR(TIMER4_COMPB_vect)
 		isrRedirectObj->isrRedirect(TMR_4_CMPB);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
-ISR(TIMER4_COMPC_vect)        // interrupt service routine
+ISR(TIMER4_COMPC_vect)
 {
 	if(psPtr_4)
 		psPtr_4->timerISRC();
@@ -1307,8 +1320,7 @@ ISR(TIMER4_COMPC_vect)        // interrupt service routine
 }
 
 
-//***************************************************************
-// interrupt handler for timer. 
+//*******************************************************************
 //
 ISR(TIMER5_COMPA_vect)
 {
@@ -1318,7 +1330,8 @@ ISR(TIMER5_COMPA_vect)
 		isrRedirectObj->isrRedirect(TMR_5_CMPA);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
 ISR(TIMER5_COMPB_vect)
 {
@@ -1328,9 +1341,10 @@ ISR(TIMER5_COMPB_vect)
 		isrRedirectObj->isrRedirect(TMR_5_CMPB);
 }
 
-//***************************************************************
+
+//*******************************************************************
 // 
-ISR(TIMER5_COMPC_vect)        // interrupt service routine
+ISR(TIMER5_COMPC_vect)
 {
 	if(psPtr_5)
 		psPtr_5->timerISRC();

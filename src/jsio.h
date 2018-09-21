@@ -8,7 +8,6 @@
 #ifndef JSIO_H
 #define JSIO_H
 
-//#include <inttypes.h>
 #include <stdint.h>
 #include <avr/pgmspace.h>
 
@@ -18,13 +17,17 @@
 #define AVR_ATmega2560_FAMILY (defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__))
 #define AVR_ATmega328_FAMILY (defined(__AVR_ATmega168__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega328p__))
 
+//
 // timer defs
+//
 #define TIMER_SEL_1 1
 #define TIMER_SEL_3 3
 #define TIMER_SEL_4 4
 #define TIMER_SEL_5 5
 
+//
 // common timer register control bits
+//
 #define OCIEA 1		// timer compare interrupt enab
 #define OCIEB 2
 #define OCIEC 3
@@ -33,7 +36,9 @@
 #define OCFB 2
 #define OCFC 3
 
+//
 // macros for accessing timer IO regs
+//
 #define TCCRA IO_REG8(_TCCRA)
 #define TCCRB IO_REG8(_TCCRB)
 #define TCNT IO_REG16(_TCNT)
@@ -43,7 +48,7 @@
 #define TIMSK IO_REG16(_TIMSK)
 #define TIFR IO_REG16(_TIFR)
 
-
+//
 // timer IO addresses for timer 1, 3, 4, & 5
 //
 // timer 1
@@ -86,7 +91,6 @@
 #define _TIMSK5 0x73
 #define _TIFR5 0x3A
 
-
 //
 // Macros for accessing I/O regs
 //
@@ -110,6 +114,9 @@
 //
 #define DELAY_1_NOP __asm__("nop\n\t")  // on 16 Mhz cpu - 62.5ns
 
+//
+// macros for bit manipulation
+//
 #define SETb(x,y) x |= (1 << y)
 #define CLRb(x,y) x &= ~(1<< y)
 #define CMPb(x,y) x & (1 << y)

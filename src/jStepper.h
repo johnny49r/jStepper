@@ -59,19 +59,16 @@
 #ifndef _JSTEPPER_H
 #define _JSTEPPER_H
 
-//### included libs ###
+//### Arduino included libs ###
 #include <stdlib.h>
 #include <Arduino.h>
-
 #include <inttypes.h>
 #include <avr/pgmspace.h>
 
-
-//#include "jsmacros.h"
+//### local header files
 #include "jsmath.h"
 #include "jsio.h"
 #include "jsconfig.h"
-#include "jsIntRouter.h"
 
 
 // ==========================================================================
@@ -211,12 +208,13 @@ class jStepper
 public:
 	//**************************************************************
 	// constructor
-	//jStepper(void (*extIOfunc)(uint8_t, uint8_t));   // if using external function
+	//
 	//
 	jStepper(void);
 
 	//**************************************************************
-	// begin() imports the motor config structure and initializes all
+	// begin() imports the motor config structure and initializes all.
+	// This should be done before anything else.
 	//
 	uint32_t begin(jsMotorConfig);
 
@@ -281,12 +279,9 @@ public:
 	float getAcceleration(uint8_t motorNum);
 
 	//**************************************************************
-	// runMotors() moves the motors to a new position set by either
-	// setPositionAbs() or setPositionRel()
-	// mSync if true synchronizes all motors so they arrive at the
-	// same time.
+	// runMotors() executes the movement plan created by setPosition()
 	//
-	uint8_t runMotors(bool mSync);
+	uint8_t runMotors(void);
 
 	//**************************************************************
 	// stepMotor() moves the specified motor 1 step IN or OUT depending 
@@ -309,13 +304,19 @@ public:
 	void quickStop(uint8_t motorNum);
 
 	//**************************************************************
-	// setPositionAbs() sets the absolute position for a motor in mm
-	// returns error code (neg value, out of bounds, etc.)
+	// setPosition() sets the absolute position for a motor in mm
+	// returns error code (input neg value, out of bounds, etc.)
 	//
-	uint8_t setPosition(float pos0, float pos1, float pos2);
+	// This function plans motor movement, sync / async, and linear
+	// acceleration / deceleration profiles.
+	//
+	// If mSync ==  true, all motors will synchronize to the motor
+	// with the longest duration.
+	//
+	uint8_t setPosition(float pos0, float pos1, float pos2, bool mSync);
 
 	//**************************************************************
-	// getPositionAbs() returns absolute position for the given motor
+	// getPosition() returns absolute position for the given motor
 	//
 	float getPosition(uint8_t motorNum);
 
@@ -358,13 +359,6 @@ public:
 	void timerISRB(void);
 	void timerISRC(void);	
 
-
-
-	//**************************************************************
-	// deadbeef() is a do-nothing function which simply returns
-	//
-	static void deadbeef(void);
-
 	//**************************************************************
 	// atMinEndStop() returns true if endstop detector triggered.
 	//
@@ -377,14 +371,11 @@ public:
 
 	void addTimerCallBack(uint8_t whichTimer, void *p);
 
-	void genLookupTable(void);    // utility routine for making new lookup tables
+	//void genLookupTable(void);    // utility routine for making new lookup tables
 
 	void isrRedirect(uint8_t whichTimerInt);
 
-
 protected:
-
-
 
 
 
@@ -392,10 +383,6 @@ private:
 	mBlock_t mBlocks[NUM_MOTORS];
 	uint16_t _sort[NUM_MOTORS];
 	jsMotorConfig _mConfig;	// copy of user template
-
-
-
-
 
 	uint16_t _TCCRA;
 	uint16_t _TCCRB;
@@ -408,5 +395,44 @@ private:
 
 };
 
+
+////***************************************************************
+//// used to build lookup tables
+////
+//void jStepper::genLookupTable(void) {
+//
+////
+//// set up initial parameters
+////
+//float F = ONE_MILLION;
+//float acc = 100000;
+//// this is how _c0 is usually initialized
+////uint32_t _c0 = round(0.676 * sqrt(2.0 / acc) * F);
+//// but for this function _c0 is set to the outer bound
+//uint32_t _c0 = 32768;
+//uint32_t cruiseInt = 50;
+//uint32_t _cn;
+//float _magic = 65535;
+//uint32_t i;
+//
+//   _cn = _c0;
+//
+//	for(i=1; i<=1000; i++)
+//	{
+//      Serial.print(uint32_t(_magic));
+//		Serial.print(", ");
+//		if(i % 10 == 0)
+//			Serial.println("");
+//
+//      _cn = _cn - ((2.0 * _cn) / ((4.0 * i) + 1));
+//      _cn *=  float(1.0 - (i / 82000.0));     // build S curve at the end of the ramp
+//
+//      _magic = float(_cn) / float(_c0);
+//      _magic = uint32_t(65536.0 * _magic);
+//
+//      if(_cn < cruiseInt)
+//         break;
+//	}
+//}
 
 #endif // JSTEPPER_H
