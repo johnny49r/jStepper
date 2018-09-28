@@ -26,7 +26,7 @@ typedef struct  {
 	uint8_t MOTOR_2_DIR_PIN;
 	uint8_t MOTOR_2_ENB_PIN;
 
-	uint8_t  ENDSTOP_MIN_0_PIN;
+	uint8_t ENDSTOP_MIN_0_PIN;
 	uint8_t ENDSTOP_MIN_1_PIN;
 	uint8_t ENDSTOP_MIN_2_PIN;
 
@@ -51,6 +51,31 @@ typedef struct  {
 	uint8_t MOTOR_0_STEPS_PER_MM;
 	uint8_t MOTOR_1_STEPS_PER_MM;
 	uint8_t MOTOR_2_STEPS_PER_MM;
+	
+	// motor travel limits
+	// can be overidden with setMinPosition() / setMaxPosition()
+	//
+	float MOTOR_0_MINPOS;   // usually = 0
+	float MOTOR_0_MAXPOS;   // physical boundary of this axis
+	float MOTOR_1_MINPOS;
+	float MOTOR_1_MAXPOS;
+	float MOTOR_2_MINPOS;
+	float MOTOR_2_MAXPOS;	
+	
+	// speed limits 
+	// can be overidden with setSpeed()
+	//
+	float MOTOR_0_SPEED;
+	float MOTOR_1_SPEED;
+	float MOTOR_2_SPEED;
+	
+	// default acceleration
+	// can be overidden with setAcceleration()
+	//
+	float MOTOR_0_ACCEL;
+	float MOTOR_1_ACCEL;
+	float MOTOR_2_ACCEL;	
+	
 }jsMotorConfig;
 
 

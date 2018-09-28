@@ -25,13 +25,35 @@
 #define TIMER_SEL_4 4
 #define TIMER_SEL_5 5
 
+enum {
+	TMR_1_CMPA=0,
+	TMR_1_CMPB,
+	TMR_1_CMPC,
+	TMR_1_OVF,
+	TMR_3_CMPA,
+	TMR_3_CMPB,
+	TMR_3_CMPC,
+	TMR_3_OVF,
+	TMR_4_CMPA,
+	TMR_4_CMPB,
+	TMR_4_CMPC,
+	TMR_4_OVF,
+	TMR_5_CMPA,
+	TMR_5_CMPB,
+	TMR_5_CMPC,
+	TMR_5_OVF,
+};
+
+
 //
 // common timer register control bits
 //
+#define TOIE 0
 #define OCIEA 1		// timer compare interrupt enab
 #define OCIEB 2
 #define OCIEC 3
 
+#define TOV 0
 #define OCFA 1		// clear pending interrupts
 #define OCFB 2
 #define OCFC 3
@@ -100,14 +122,20 @@
 //
 // fast I/O routines that replace pinMode, digitalWrite, etc.
 //
-#define PIN_OUTPUT(pin) (IO_REG16(pgm_read_word(ddr_lu + pin)) |= pgm_read_byte(bit_lu + pin))
-#define PIN_INPUT(pin) (IO_REG16(pgm_read_word(ddr_lu + pin)) &= ~(pgm_read_byte(bit_lu + pin)))
+#define _PIN_OUTPUT(pin) (IO_REG16(pgm_read_word(ddr_lu + pin)) |= pgm_read_byte(bit_lu + pin))
+#define _PIN_INPUT(pin) (IO_REG16(pgm_read_word(ddr_lu + pin)) &= ~(pgm_read_byte(bit_lu + pin)))
+#define PIN_OUTPUT(pin) _PIN_OUTPUT(pin)
+#define PIN_INPUT(pin) _PIN_INPUT(pin)
 
-#define PIN_READ(pin) (bool)(IO_REG16(pgm_read_word(pin_lu + pin)) & pgm_read_byte(bit_lu + pin))
-#define PIN_WRITE(pin, V) do{ if(V){ IO_REG16(pgm_read_word(port_lu + pin)) |= pgm_read_byte(bit_lu + pin); } \
+#define _PIN_READ(pin) (bool)(IO_REG16(pgm_read_word(pin_lu + pin)) & pgm_read_byte(bit_lu + pin))
+#define _PIN_WRITE(pin, V) do{ if(V){ IO_REG16(pgm_read_word(port_lu + pin)) |= pgm_read_byte(bit_lu + pin); } \
 		else { IO_REG16(pgm_read_word(port_lu + pin)) &= ~(pgm_read_byte(bit_lu + pin)); } }while(0)
-#define PIN_INPUT_PULLUP(pin) do{ PIN_INPUT(pin); PIN_WRITE(pin, 0x01); }while(0)
-#define PIN_OUT_WRITE(pin, V) do{ PIN_OUTPUT(pin); PIN_WRITE(pin, V); }while(0)
+
+#define PIN_READ(pin) _PIN_READ(pin)
+#define PIN_WRITE(pin, V) _PIN_WRITE(pin, V)
+
+#define PIN_INPUT_PULLUP(pin) do{ _PIN_INPUT(pin); _PIN_WRITE(pin, 0x01); }while(0)
+#define PIN_OUT_WRITE(pin, V) do{ _PIN_OUTPUT(pin); _PIN_WRITE(pin, V); }while(0)
 
 //
 // misc I/O macros

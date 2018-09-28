@@ -90,7 +90,7 @@
 #define MAX_MOTOR_RPM 750.0	// motor torque declines above this rpm
 #define MOTOR_DISTANCE_PER_REV 8.0	// mm moved in 1 rev of the motor
 //#define MAX_SPEED ((MAX_MOTOR_RPM / 60.0) * MOTOR_DISTANCE_PER_REV)
-#define MAX_SPEED 200   // 200 mm/sec (20000 pps)
+#define MAX_SPEED 100   // 100 mm/sec (10000 pps)
 
 // ==========================================================================
 // NUM_MOTORS should always be = 3
@@ -107,20 +107,6 @@ enum {
 	MOTOR_ALL,
 };
 
-enum {
-	TMR_1_CMPA=0,
-	TMR_1_CMPB,
-	TMR_1_CMPC,
-	TMR_3_CMPA,
-	TMR_3_CMPB,
-	TMR_3_CMPC,
-	TMR_4_CMPA,
-	TMR_4_CMPB,
-	TMR_4_CMPC,
-	TMR_5_CMPA,
-	TMR_5_CMPB,
-	TMR_5_CMPC,
-};
 
 //
 //  error code enumerations
@@ -131,9 +117,11 @@ enum {
     ERR_INVALID_MOTOR,
     ERR_DISABLED,   // motor can't move if its disabled
     ERR_IN_ENDSTOP, // motor can't move if headed towards a crash
+	ERR_ENDSTOP_NOT_FOUND,
     ERR_POSITION_UNKNOWN,   
     ERR_OUTSIDE_BOUNDARY,
 	ERR_MOTORS_RUNNING,	// motor(s) are still running
+	ERR_NULL_PTR,
 };
 
 //
@@ -144,6 +132,14 @@ enum {
 	MOTOR_DIRECTION_OUT,
 	MOTOR_ENABLE,
 	MOTOR_DISABLE,
+};
+
+//
+//  position & coordinate system enumerations
+//
+enum {
+	MODE_ABSOLUTE,
+	MODE_RELATIVE,
 };
 
 //
@@ -158,13 +154,17 @@ enum {
 //
 // motor run action states - see ISR
 //
-enum {
+enum motorActions {
 	STEP_DONE = 0,		// step done must = 0
 	STEP_CRUISE,
 	STEP_ACCEL,
 	STEP_DECEL,
 	STEP_LONG,
+	HOMING_PHASE1,
+	HOMING_PHASE2,
+	HOMING_PHASE3,
 };
+
 
 //
 // internal motor block structure
@@ -199,158 +199,163 @@ typedef struct {
 #define CALC_ACCEL(P,V,S) do{ P = V * uint32_t(pgm_read_word_near(accel_lookup_table + S)); }while(0)	
 
 
-// ==========================================================================
+// ==================================================================
 //
 // jStepper class
 // 
 class jStepper
 {
 public:
-	//**************************************************************
+	//****************************************************************
 	// constructor
 	//
 	//
 	jStepper(void);
 
-	//**************************************************************
+	//****************************************************************
 	// begin() imports the motor config structure and initializes all.
 	// This should be done before anything else.
 	//
-	uint32_t begin(jsMotorConfig);
+	uint8_t begin(jsMotorConfig);
 
-	//**************************************************************
+	//****************************************************************
 	// setSpeed() sets the speed (movement in mm/sec) for all motors
 	// given in millimeters/second.
 	//
 	void setSpeed(float speed0, float speed1, float speed2);
 
-	//**************************************************************
+	//****************************************************************
 	// getSpeed() returns the current speed 
 	//
 	float getSpeed(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// setMaxSpeed() sets the maximum movement in mm/sec for the motor(s)
 	// given in millimeters/second.
 	//
 	void setMaxSpeed(float maxSpeed0, float maxSpeed1, float maxSpeed2);
 
-	//**************************************************************
+	//****************************************************************
 	// getMaxSpeed() returns the current max speed 
 	//
 	float getMaxSpeed(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// setDirection() routine to set step direction pin
 	// mDir = direction, see stepControl enums
 	// returns error code
 	//
 	void setDirection(uint8_t motorNum, uint8_t dir);
 
-	//**************************************************************
+	//****************************************************************
 	// getDirection() returns direction state for the given motor
 	// direction - see stepControl enums
 	//
 	uint8_t getDirection(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// setEnabled() enables/disables the specified motor.
 	// enab = true to enable
 	// returns error if something wrong
 	//
 	void setEnabled(uint8_t motorNum, bool enab);
 
-	//**************************************************************
+	//****************************************************************
 	// isEnable() returns true if motor is enabled.
 	//
 	bool isEnabled(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// setAcceleration() sets the 'acceleration' value for the motor(s). 
 	// Acceleration in this implementation creates a linear acceleration
 	// profile that is expressed in steps/second^2.
 	//
 	void setAcceleration(float acc0, float acc1, float acc2);
 
-	//**************************************************************
+	//****************************************************************
 	// getAcceleration() returns current acceleration value for the
 	// given motor
 	//
 	float getAcceleration(uint8_t motorNum);
 
-	//**************************************************************
-	// runMotors() executes the movement plan created by setPosition()
+	//****************************************************************
+	// runMotors() executes the movement plan created by planMoves()
 	//
-	uint8_t runMotors(void);
+	uint8_t runMotors(float pos0, float pos1, float pos2, bool mSync);
 
-	//**************************************************************
+	//****************************************************************
+	// homeMotors() homes one or all axis to home position
+	//
+	uint8_t homeMotor(uint8_t motorNum, uint16_t homeSpeed);
+
+	//****************************************************************
 	// stepMotor() moves the specified motor 1 step IN or OUT depending 
 	// on setDirection().
 	// returns error code if step can't be performed
 	//
 	uint8_t stepMotor(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// isRunning() returns the run state of the given motor (true if
 	// running). If motorNum == MOTOR_ALL, true is returned if ANY
 	// motors are running.
 	//
 	bool isRunning(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// quickStop() forces an immediate halt of the given motor.
 	// If motorNum == MOTOR_ALL, all motors are stopped.
 	//
 	void quickStop(uint8_t motorNum);
 
-	//**************************************************************
-	// setPosition() sets the absolute position for a motor in mm
-	// returns error code (input neg value, out of bounds, etc.)
+	//****************************************************************
+	// setPosition() sets the absolute position for the given motor
 	//
-	// This function plans motor movement, sync / async, and linear
-	// acceleration / deceleration profiles.
+	// returns an error if new position is out of bounds.
 	//
-	// If mSync ==  true, all motors will synchronize to the motor
-	// with the longest duration.
-	//
-	uint8_t setPosition(float pos0, float pos1, float pos2, bool mSync);
+	uint8_t setPosition(uint8_t motorNum, float newPos);
 
-	//**************************************************************
+	//****************************************************************
 	// getPosition() returns absolute position for the given motor
 	//
 	float getPosition(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
+	// setPositionMode() returns absolute position for the given motor
+	//
+	void setPositionMode(uint8_t positionMode);
+
+	//****************************************************************
 	// setPositionKnown() sets position known for the given motor
 	//
 	void setPositionKnown(uint8_t motorNum, bool known);
 
-	//**************************************************************
+	//****************************************************************
 	// isPositionKnown() gets position known for the given motor
 	//
 	uint8_t isPositionKnown(uint8_t motorNum);
 
-	//**************************************************************
+	//****************************************************************
 	// setMinPosition() sets min position for the motor group
 	//
 	void setMinPosition(float minPos0, float minPos1, float minPos2);  
 
-	//**************************************************************
+	//****************************************************************
 	// getMinPosition() returns min position for the given motor
 	//
 	float getMinPosition(uint8_t motorNum);     
 
-	//**************************************************************
+	//****************************************************************
 	// setMaxPosition() sets max position for the motor group
 	//
 	void setMaxPosition(float maxPos0, float maxPos1, float maxPos2);      
 
-	//**************************************************************
+	//****************************************************************
 	// getMaxPosition() returns max position for the given motor
 	//
 	float getMaxPosition(uint8_t motorNum);     
 
-	//**************************************************************
+	//****************************************************************
 	// timerISRn() is called by the specific timer interrupt to handle
 	// step pulse generation for scheduled motors. 
 	// Timer is 16 bits @ 2Mhz which means max interval count is 32768.
@@ -359,12 +364,12 @@ public:
 	void timerISRB(void);
 	void timerISRC(void);	
 
-	//**************************************************************
+	//****************************************************************
 	// atMinEndStop() returns true if endstop detector triggered.
 	//
 	bool atMinEndStop(uint8_t motorNum);
 	
-	//**************************************************************
+	//****************************************************************
 	// atMaxEndStop() returns true if endstop detector triggered.
 	//
 	bool atMaxEndStop(uint8_t motorNum);	
@@ -375,14 +380,32 @@ public:
 
 	void isrRedirect(uint8_t whichTimerInt);
 
+	//****************************************************************
+	// homeISR is used during homing to allow it to be interrupt driven
+	// The interrupt comes from the timer OVF. The step frequency is
+	// set = 65536 - (delay in microseconds * 2)
+	//
+	void homeISR(void);
+
+
 protected:
 
 
-
 private:
+	//****************************************************************
+	// planMoves() plans movement, acceleration, and synchronization of
+	// each motor.
+	//
+	uint8_t planMoves(float pos0, float pos1, float pos2, bool mSync);
+
 	mBlock_t mBlocks[NUM_MOTORS];
 	uint16_t _sort[NUM_MOTORS];
 	jsMotorConfig _mConfig;	// copy of user template
+	uint8_t _positionMode;
+	uint8_t _homingMotor;
+	uint8_t _homingResult;
+	uint16_t _homingSpeed;
+	uint16_t _homingSteps;
 
 	uint16_t _TCCRA;
 	uint16_t _TCCRB;
@@ -396,7 +419,7 @@ private:
 };
 
 
-////***************************************************************
+////*****************************************************************
 //// used to build lookup tables
 ////
 //void jStepper::genLookupTable(void) {
