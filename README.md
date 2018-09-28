@@ -2,8 +2,12 @@
 
 Arduino high performance stepper library for ATMega boards. 
 
-The library is targeted for the Arduino ATMega family but can be adapted
+The library is targeted for the Arduino ATMega board family and can be adapted
 to many other embedded systems. 
+There are certainly simpler ways to control stepper motors such as the Arduino 
+'stepper' library or the popular AccelStepper library. 
+This library was written for a CNC control application that required high 
+performance and unique features that weren't available in other open-source projects. 
 
 ### FEATURES
 
