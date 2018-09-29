@@ -281,7 +281,7 @@ public:
 	//****************************************************************
 	// runMotors() executes the movement plan created by planMoves()
 	//
-	uint8_t runMotors(float pos0, float pos1, float pos2, bool mSync);
+	uint8_t runMotors(float pos0, float pos1, float pos2, bool mSync, bool plan);
 
 	//****************************************************************
 	// homeMotors() homes one or all axis to home position
@@ -387,16 +387,17 @@ public:
 	//
 	void homeISR(void);
 
-
-protected:
-
-
-private:
 	//****************************************************************
 	// planMoves() plans movement, acceleration, and synchronization of
 	// each motor.
 	//
 	uint8_t planMoves(float pos0, float pos1, float pos2, bool mSync);
+
+protected:
+
+
+private:
+
 
 	mBlock_t mBlocks[NUM_MOTORS];
 	uint16_t _sort[NUM_MOTORS];

@@ -1282,12 +1282,13 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 //
 //###################################################################
 //
-uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync)
+uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync, bool plan)
 {
 	if(isRunning(MOTOR_ALL))		// exit if any motors are still running
 		return ERR_MOTORS_RUNNING;
 
-	planMoves(pos0, pos1, pos2, mSync);
+	if(plan)
+		planMoves(pos0, pos1, pos2, mSync);
 
 
 	//***************************************************************
