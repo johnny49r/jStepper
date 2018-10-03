@@ -53,7 +53,24 @@
 //
 // ==========================================================================
 //
+// V-1.01 10/03/2018
+//			-- Added homing direction options to the jsMotorConfig structure. This
+//				allows homing in the opposite direction of the 'origin'.
+//			-- Small changes to the homeMotor() function to improve repeatability of
+//				endstop detection.
+//			-- Added function setStepsPerUnit() and getStepsPerUnit() which allows
+//				changing movement geometry on the fly. Also needed to support g-code
+//				command M92.
+//			-- Added new command planMoves() which handles all the movement calculations,
+//				acceleration profiles, and motor synchronization. This can be called
+//				while motor(s) are running to prepare for the next movement (runMotors).
+//				This avoids the overhead of doing the planning at execution time.
+//				Additionally the runMotors() now has a new argument which dictates
+//				if the planner needs to be invoked from runMotors().
+//			-- Other small improvements and code cleaning.
+//
 // RELEASE V-1.0 09/15/2018
+//
 //
 
 #ifndef _JSTEPPER_H
@@ -92,6 +109,14 @@
 //#define MAX_SPEED ((MAX_MOTOR_RPM / 60.0) * MOTOR_DISTANCE_PER_REV)
 #define MAX_SPEED 100   // 100 mm/sec (10000 pps)
 
+// Default origins are used in homeMotor() to initialize curPosition.
+// Normally the home positions would not be at 0. These defaults are
+// overidden by the setPosition() function.
+//
+#define ORIGIN_0 0
+#define ORIGIN_1 0
+#define ORIGIN_2 0
+
 // ==========================================================================
 // NUM_MOTORS should always be = 3
 //
@@ -128,8 +153,8 @@ enum {
 //  stepControl enumerations
 //
 enum {
-	MOTOR_DIRECTION_IN,
-	MOTOR_DIRECTION_OUT,
+	MOTOR_DIRECTION_IN,			// away from the origin
+	MOTOR_DIRECTION_OUT,		// towards the origin
 	MOTOR_ENABLE,
 	MOTOR_DISABLE,
 };
@@ -179,7 +204,7 @@ typedef struct {
 	float acceleration;        	// accel / decel for this motor
 	bool positionKnown;       	// has motor been homed?
 	volatile uint8_t mAction;  	// motor action cmd (isr state machine)
-	uint16_t stepsPerMM;      	// steps / mm
+	uint16_t stepsPerUnit;     	// steps / unit (millimeters)
 	uint16_t numSteps;        	// total steps to move
 	volatile uint32_t cruiseSteps;      // number of cruise speed steps to do
 	uint16_t cruiseRate;       	// constant run speed (in PPS)
@@ -190,6 +215,8 @@ typedef struct {
 	volatile uint32_t startInterval;    // starting interval for ramp (accel seed value)
 	uint32_t rampTime;        	// time of accel/decel ramp (in usec)
 	uint32_t totalTime;       	// total time for this movement (in usec)
+	uint8_t lastResult;			// result code from last operation (async)
+	bool homeInvert;			// true if endstop is opposite of the origin
 
 }mBlock_t;
 
@@ -286,7 +313,15 @@ public:
 	//****************************************************************
 	// homeMotors() homes one or all axis to home position
 	//
-	uint8_t homeMotor(uint8_t motorNum, uint16_t homeSpeed);
+	uint8_t homeMotor(uint8_t motorNum, uint16_t hSpeed);
+
+	//****************************************************************
+	// getLastResult() returns the results for asyncronous operations
+	// such as homing or movement. The non-blocking nature of the library
+	// means that results may not be available until the operation is
+	// complete.
+	//
+	uint8_t getLastResult(uint8_t motorNum);
 
 	//****************************************************************
 	// stepMotor() moves the specified motor 1 step IN or OUT depending 
@@ -331,7 +366,7 @@ public:
 	void setPositionKnown(uint8_t motorNum, bool known);
 
 	//****************************************************************
-	// isPositionKnown() gets position known for the given motor
+	// isPositionKnown() returns position known state for the given motor
 	//
 	uint8_t isPositionKnown(uint8_t motorNum);
 
@@ -393,6 +428,19 @@ public:
 	//
 	uint8_t planMoves(float pos0, float pos1, float pos2, bool mSync);
 
+	//****************************************************************
+	// setStepsPerUnit() sets the number of steps per unit (millimeters)
+	// for each motor. This command overrides the values imported in
+	// the begin() function.
+	//
+	uint8_t setStepsPerUnit(uint16_t su0, uint16_t su1, uint16_t su2);
+
+	//****************************************************************
+	// getStepsPerUnit() returns the number of steps per unit (millimeters)
+	// for the given motor.
+	//
+	uint16_t getStepsPerUnit(uint8_t motorNum);
+
 protected:
 
 
@@ -404,8 +452,7 @@ private:
 	jsMotorConfig _mConfig;	// copy of user template
 	uint8_t _positionMode;
 	uint8_t _homingMotor;
-	uint8_t _homingResult;
-	uint16_t _homingSpeed;
+	uint16_t _homingSpeed;		// specific to homeMotors
 	uint16_t _homingSteps;
 
 	uint16_t _TCCRA;

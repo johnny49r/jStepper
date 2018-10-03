@@ -42,6 +42,12 @@ typedef struct  {
 	uint8_t MOTOR_1_DIRECTION_IN;
 	uint8_t MOTOR_2_DIRECTION_IN;
 
+	// homing direction
+	// set true if home position is != origin
+	bool MOTOR_0_HOMING_INVERT;
+	bool MOTOR_1_HOMING_INVERT;
+	bool MOTOR_2_HOMING_INVERT;
+
 	// endstop detector active state
 	uint8_t IN_ENDSTOP;
 
