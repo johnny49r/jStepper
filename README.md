@@ -51,15 +51,15 @@ Your sketch should now have "#include <jStepper.h>". If not add it manually.
 ### USAGE
 
 You will need to initialize a structure (jsMotorConfig) and pass it to the library
-in the xxx.begin function. Each instance of the library will need a different copy 
+in the begin() function. Each instance of the library will need a different copy 
 of the jsMotorConfig with different settings.
-Each copy of the jsMotorConfig will specify the timer it will use; 1, 3, 4, 5. 
+Each copy of the jsMotorConfig will specify the timer it will use; 1, 3, 4, or 5. 
 Once the structure has been passed to the library it is ready to accept commands.
 
 NOTE: The library pre-allocates interrupt service routines for all available 16 bit
 timers. This means that you can't use the ISR(TIMERn_CMPn_vect) or it will conflict
-with the library. However you can dynamically link your own interrupt handler through
-the 'addTimerCallBack' function (see examples).
+with the library. However you can add your own interrupt handler through the 
+'addTimerCallBack' function (see examples).
 
 ### TODO
 
