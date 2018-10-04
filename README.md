@@ -35,10 +35,15 @@ containing stepper driver modules. This is very similar to the popular RAMPS arc
 This library will also work with hybrids such as the Rambo and others.
 
 The code generates STEP and DIRECTION signals in real time. 
-The user supplies control pin information via a template structure.
+The user supplies control pin and geometry information via a template structure.
 
 The library has been tested on the ATMega 2560 platform. It should also 
-work on the ATMega 328 and other derivatives of Atmel CPU's.
+work on the ATMega 328 and other derivatives of Atmel CPU's. Additionally this library 
+or some of its concepts can be ported to other embedded platforms.
+
+NOTE: If the timer compare outputs are available in your hardware, these can be connected to
+the stepper drivers. This eliminates any timebase jitter caused by overlapping interrupt
+service routines.
 
 ### EXAMPLES
 
@@ -46,10 +51,12 @@ Please see the examples folder.
 
 ### INSTALLATION
 
-Download from Github as a ZIP file.
-Place the ZIP file in your Arduino/libraries directory.
-In the Arduino IDE, select Sketch->Include Library->Add .ZIP Library to install.
-Your sketch should now have "#include <jStepper.h>". If not add it manually.
+1) Download the latest library version from: https://github.com/johnny49r/jStepper as a 
+.ZIP file. It will be named jStepper-master.ZIP.
+2) Place the ZIP file in the Arduino/libraries folder.
+3) Launch the Arduino IDE and goto Sketch→Include Library→Add .ZIP Library…
+4) Select the ZIP file in your Arduino/libraries folder. The IDE should create a folder called ‘jStepper-master’ and unpack all files in that folder. Your sketch should also contain a new directive ‘#include <jStepper.h>’. If not you will need to add it manually.
+5) The library can also be added manually by creating a new folder in your Arduino/libraries folder and extract the contents of the ZIP file into the new folder. Close the IDE and restart. You should now find the library is available to add to your sketch and you can add ‘#include <jStepper.h>’ to your sketch. 
 
 ### USAGE
 
