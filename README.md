@@ -14,16 +14,19 @@ performance and unique features that weren't available in other open-source proj
 1) Supports up to 3 stepper motors per instance of the library.
 2) Multiple instances limited to the number of available 16 bit timers.
 3) High speed stepping up to 20,000 PPS on three concurrent motors.
-4) Accurate step pulse timing with minimal timebase jitter.
-5) Constant speed mode (square profile).
-5) Real time linear acceleration (trapeziod & triangle profiles).
-6) Syncronize motors to arrive at the destination at the same time.
-7) Primitive functions for single stepping & endstop detection (homing).
-8) Interrupt driven step engine doesn't require user program intervention.
-9) Non blocking allows true multi-tasking.
-10) Supports relative and absolute positioning.
-10) Dynamic I/O and Timer ISR assignment.
-11) Fast I/O functions available to your program. See the jsio.h file.
+4) Very slow step rates down to one step every 72 minutes.
+5) Accurate step pulse timing with minimal timebase jitter.
+6) Constant speed mode (square profile).
+7) Real time linear acceleration (trapeziod & triangle profiles).
+8) Syncronize motors to arrive at the destination at the same time.
+9) Plan-ahead feature eliminates overhead between motor movements.
+10) Primitive functions for single stepping & endstop detection (homing).
+11) Built-in homing function, interrupt driven (non-blocking).
+12) Interrupt driven stepping and planning operates in the background (multi-tasking).
+13) Library manages I/O and interrupt redirection dynamically for multiple instances.
+14) Supports relative and absolute positioning.
+15) User programmed timer interrupt callback.
+16) Fast I/O and math functions available to your program. See the jsio.h & jsmath.h files.
 
 ### HARDWARE
 
