@@ -1,16 +1,12 @@
 #include <jStepper.h>
 
 //
-// jStepper use:
-// 1) Download ZIP library and place in your Arduino 'libraries' directory
+// jstep use:
+// 1) Download library and place in your Arduino 'libraries' directory
 // 2) Install library using the Add .ZIP file in Arduino library manager.
-// 3) In your sketch, create an instance of the library.
-// 3) Create a jsMotorConfig object.
-// 4) Initialize the jsMotorConfig object.
-// 5) Initialize any other motor signals (external to library)
-// 6) Set parameters for speed & distance.
-// 7) Run the motors.
-// 
+// 3) Edit the jsconfig.h file in the jstep library folder to
+//    specify pin assignments and geometry.
+//
 
 // New instance of the jStepper library
 jStepper jstep;
@@ -18,29 +14,19 @@ jStepper jstep;
 // create a motor template object
 jsMotorConfig mGroup0;
 
+
 void setup() 
 {
   Serial.begin(115200);
-  
-  // initialize I/O and other parameters in template
   initMotorTemplate(0);   // only one group in this example
-  
-  // send the template to the jStepper library 
-  jstep.begin(mGroup0);  
-
-  // other specific motor initialization
-  initMyMotor();   
-  
-  // Now ready to accept commands ---
+  initMyMotor();  // init unique motor control signals
+  jstep.begin(mGroup0); 
   // set up basic prerequisites for one motor
-  // set max travel distance in mm
+  // set max travel limits in mm
   jstep.setMaxPosition(200, 0, 0);
-  
-  // set motor speed + limit
+  // set motor speed
   jstep.setMaxSpeed(100, 0, 0);
-  jstep.setSpeed(20, 0, 0);   // mm/sec (10mm/sec)
-
-  // enable the motor(s)
+  jstep.setSpeed(30, 0, 0);   // mm/sec (10mm/sec)
   jstep.setEnabled(MOTOR_0, true);
 }
 
@@ -48,45 +34,68 @@ void loop() {
   static bool someEvent = true;
   int8_t errcode;
 
-  // here we do a movement
   if(someEvent)
   {
-    // set position known = true
-    // this would normally be done after homing where the 
-    // travel boundaries have been detected.
-    //
-    jstep.setPositionKnown(0, true); 
+    // home the first motor and set the PositionKnown true if successful.
+    jstep.homeMotor(MOTOR_0, 500);
+    while (jstep.isRunning(MOTOR_ALL));
+
+    // final result of homing not known until homing is complete
+    errcode = jstep.getLastResult(MOTOR_0);
+    if(errcode == ERR_NONE)
+      jstep.setPositionKnown(MOTOR_0, true);
     
     // this will plan the movement and run the motor(s)
-    //
-    errcode = jstep.runMotors(32.66, 0, 0, false, true);
+    errcode = jstep.runMotors(38.34, 0, 0, false, true);
     
     // *** now wait for completion of move ***
     // NOTE: The step engine is interrupt driven (non-blocking) and does
     // not need your program to wait. You can check for completion
     // whenever you want.
+    // 
+    // NOTE: If you issue another 'runMotors' before the first 
+    // operation has completed the function will return ERR_MOTORS_RUNNING.
     //
     while (jstep.isRunning(MOTOR_ALL));
 
-    // subsequent moves
-    //
+    // return motor to start position
     errcode = jstep.runMotors(0, 0, 0, false, true);
-    while (jstep.isRunning(MOTOR_ALL));
+    while (jstep.isRunning(MOTOR_ALL));    // wait for completion
 
+    delay(100);
+    
+    // all done for now - disable the motor
     jstep.setEnabled(MOTOR_0, false);
-
-    someEvent = false;    // just do it once
+    someEvent = false;  // run one time only
   }
 }
+
+//**********************************************************
+// initialize motor control signals specific 
+// to your driver chip. This driver is an A4982
+void initMyMotor(void)
+{
+#define M0_MS1_PIN          40
+#define M0_MS2_PIN          41
+#define M0_CURRENT_PIN      46
+
+// set microstepping for 1/4
+  pinMode(M0_MS1_PIN, OUTPUT);  // mtr 0 MS1 microstep select
+  digitalWrite(M0_MS1_PIN, LOW);
+  pinMode(M0_MS2_PIN, OUTPUT);
+  digitalWrite(M0_MS2_PIN, HIGH);
+
+  // set motor current - this hardware uses a filtered PWM to
+  // develop an analog reference for the driver chip
+  pinMode(M0_CURRENT_PIN, OUTPUT);
+  analogWrite(M0_CURRENT_PIN, 128);   // about 1A
+}
+
 
 //******************************************************
 // General settings for 3 motors
 // This structure must be sent to the library before
 // anything else can happen.
-// This particular hardware is a mini-Rambo board which
-// is an integration of the Arduino ATmega2560 board with
-// stepper drivers (A4982) and other specific circuits for
-// 3D printer control.
 //
 void initMotorTemplate(uint8_t groupNum)
 {
@@ -143,10 +152,9 @@ void initMotorTemplate(uint8_t groupNum)
 
       // homing direction
       // set true if home position is != origin
-      //
       mGroup0.MOTOR_0_HOMING_INVERT = false;
       mGroup0.MOTOR_1_HOMING_INVERT = false;
-      mGroup0.MOTOR_2_HOMING_INVERT = false;
+      mGroup0.MOTOR_2_HOMING_INVERT = false;      
 
       //--------------------------------
       // define endstop active state
@@ -167,26 +175,4 @@ void initMotorTemplate(uint8_t groupNum)
       mGroup0.MOTOR_2_STEPS_PER_MM = 100;
       break;
   }
-}
-
-
-//******************************************************
-// initialize motor control signals specific 
-// to your driver chip. This driver is an A4982
-void initMyMotor(void)
-{
-#define M0_MS1_PIN          40
-#define M0_MS2_PIN          41
-#define M0_CURRENT_PIN      46
-
-// set microstepping for 1/4
-  pinMode(M0_MS1_PIN, OUTPUT);  // mtr 0 MS1 microstep select
-  digitalWrite(M0_MS1_PIN, LOW);
-  pinMode(M0_MS2_PIN, OUTPUT);
-  digitalWrite(M0_MS2_PIN, HIGH);
-
-  // set motor current - this hardware uses a filtered PWM to
-  // develop an analog reference for the driver chip
-  pinMode(M0_CURRENT_PIN, OUTPUT);
-  analogWrite(M0_CURRENT_PIN, 128);   // about 1A
 }
