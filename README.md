@@ -1,11 +1,11 @@
 # jStepper 
 
-Arduino high performance stepper library for ATMega boards. 
+Arduino style high performance stepper motor library. 
 
-The library is targeted for the Arduino ATMega board family and can be adapted
-to many other embedded systems. 
-There are certainly simpler ways to control stepper motors such as the Arduino 
-'stepper' library or the popular AccelStepper library. 
+The library is targeted for the Arduino / ATmel ATMega CPU family but can be adapted
+wholly or in part to many other embedded systems. 
+There are simpler ways to control stepper motors such as the Arduino 'stepper' library 
+or the popular AccelStepper library. 
 This library was written for a CNC control application that required high 
 performance and unique features that weren't available in other open-source projects. 
 
@@ -18,7 +18,7 @@ performance and unique features that weren't available in other open-source proj
 5) Accurate step pulse timing with minimal timebase jitter.
 6) Constant speed mode (square profile).
 7) Real time linear acceleration (trapeziod & triangle profiles).
-8) Syncronize motors to arrive at the destination at the same time.
+8) Synchronize option plans motors to arrive at the destination at the same time.
 9) Plan-ahead feature eliminates overhead between motor movements.
 10) Primitive functions for single stepping & endstop detection (homing).
 11) Built-in homing function, interrupt driven (non-blocking).
@@ -27,6 +27,7 @@ performance and unique features that weren't available in other open-source proj
 14) Supports relative and absolute positioning.
 15) User programmed timer interrupt callback.
 16) Fast I/O and math functions available to your program. See the jsio.h & jsmath.h files.
+17) Motor movement complete callback relieves user program of constant monitoring.
 
 ### HARDWARE
 
