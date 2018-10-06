@@ -147,6 +147,7 @@ enum {
     ERR_OUTSIDE_BOUNDARY,
 	ERR_MOTORS_RUNNING,	// motor(s) are still running
 	ERR_NULL_PTR,
+	ERR_PLAN_VOID,
 };
 
 //
@@ -226,6 +227,7 @@ typedef struct {
 #define CALC_ACCEL(P,V,S) do{ P = V * uint32_t(pgm_read_word_near(accel_lookup_table + S)); }while(0)	
 
 
+
 // ==================================================================
 //
 // jStepper class
@@ -237,6 +239,7 @@ public:
 	// constructor
 	//
 	//
+	//jStepper(void (*extCallBack)(uint8_t));			// external callback - called when motor movemnts are done
 	jStepper(void);
 
 	//****************************************************************
@@ -308,7 +311,7 @@ public:
 	//****************************************************************
 	// runMotors() executes the movement plan created by planMoves()
 	//
-	uint8_t runMotors(float pos0, float pos1, float pos2, bool mSync, bool plan);
+	uint8_t runMotors(float pos0, float pos1, float pos2, bool mSync);
 
 	//****************************************************************
 	// homeMotors() homes one or all axis to home position
@@ -448,12 +451,19 @@ private:
 
 
 	mBlock_t mBlocks[NUM_MOTORS];
+	mBlock_t mBlocksNext[NUM_MOTORS];
+	bool _planValid;
+	uint8_t _planResult;
 	uint16_t _sort[NUM_MOTORS];
-	jsMotorConfig _mConfig;	// copy of user template
+	jsMotorConfig _mConfig;		// copy of user template
 	uint8_t _positionMode;
 	uint8_t _homingMotor;
 	uint16_t _homingSpeed;		// specific to homeMotors
 	uint16_t _homingSteps;
+
+	void stepComplete(uint8_t motorNum);
+
+	//void (*_extCallBack)(uint8_t);		// used to notify cmd completion
 
 	uint16_t _TCCRA;
 	uint16_t _TCCRB;

@@ -42,6 +42,7 @@ enum {
 	TMR_5_CMPB,
 	TMR_5_CMPC,
 	TMR_5_OVF,
+	STEP_COMPLETE_CALLBACK,		// for user to install completion callback
 };
 
 

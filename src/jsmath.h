@@ -28,15 +28,17 @@
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof(*a))		// returns the number of elements in the array
 
 /*
- * Embedded systems require fast solutions to avoid computationally expensive
- * math. This solution is a bit unorthidox but does the trick.
+ * Look ma - no sqrt's or floating point math!
  *
- * This lookup scheme converts an initial start interval (_c0) and a step
+ * The lookup scheme converts an initial start interval (_c0) and a step
  * number (n) into a correct time interval for the subsequent step (_cn). The 
  * function is equivalent to:
+ *;
  * _cn = _cn - (_c0 * (sqrt(n+1) - sqrt(n))) 
  * Lookup[n] = _cn / _c0 * 65536
  * 
+ * _c0 = 0.676 * sqrt(2.0 / accel) * f
+ *
  * The lookup scheme performs the above calc without the need for
  * square root or division and is resolved using a single integer
  * multiply and the trick of punning.
