@@ -1,33 +1,41 @@
 # jStepper 
 
-Arduino style high performance stepper motor library. 
+A high performance **stepper motor** library for embedded systems. 
 
-The library is targeted for the Arduino / Atmel ATMega CPU family but can be adapted
+_jStepper_ is an Arduino style C++ library targeted for the Atmel ATMega CPU family but can be adapted
 wholly or in part to many other embedded systems. 
+
 There are simpler ways to control stepper motors such as the Arduino 'stepper' library 
-or the popular AccelStepper library. 
-This library was written for a CNC control application that required high 
-performance and unique features that weren't available in other open-source projects. 
+or the popular AccelStepper library, however my application required high performance and
+unique features that weren't available in other open-source projects. 
+Support for multiple motors at high stepping rates (> 10,000 PPS) with real-time linear acceleration/deceleration 
+profiles.
+All motors had to operate synchronously to arrived at the target destination at the same time, 
+even with linear acceleration profiles. 
+All motor movements needed to happen in the background and allow the main program to proceed 
+with other tasks (non-blocking). 
+Multiple instances of the library had to be supported as well which required dynamic I/O and interrupt 
+handler redirection.
 
 ### FEATURES
 
-1) Supports up to 3 stepper motors per instance of the library.
-2) Multiple instances limited to the number of available 16 bit timers.
-3) High speed stepping up to 20,000 PPS on three concurrent motors.
-4) Very slow step rates down to one step every 72 minutes.
-5) Accurate step pulse timing with minimal timebase jitter.
-6) Constant speed mode (square profile).
-7) Real time linear acceleration (trapeziod & triangle profiles).
-8) Synchronize option plans motors to arrive at the destination at the same time.
-9) Plan-ahead feature eliminates overhead between motor movements.
-10) Primitive functions for single stepping & endstop detection (homing).
-11) Built-in homing function, interrupt driven (non-blocking).
-12) Interrupt driven stepping and planning operates in the background (multi-tasking).
-13) Library manages I/O and interrupt redirection dynamically for multiple instances.
-14) Supports relative and absolute positioning.
-15) User programmed timer interrupt callback.
-16) Fast I/O and math functions available to your program. See the jsio.h & jsmath.h files.
-17) Motor movement complete callback relieves user program of constant monitoring.
+:white_check_mark: Supports up to 3 stepper motors per instance of the library.
+:white_check_mark: Multiple instances limited to the number of available 16 bit timers.
+:white_check_mark: High speed stepping up to 20,000 PPS on three concurrent motors.
+:white_check_mark: Very slow step rates down to one step every 72 minutes.
+:white_check_mark: Accurate step pulse timing with minimal timebase jitter.
+:white_check_mark: Constant speed mode (square profile).
+:white_check_mark: Real time linear acceleration (trapeziod & triangle profiles).
+:white_check_mark: Synchronize option plans motors to arrive at the destination at the same time.
+:white_check_mark: Plan-ahead feature eliminates overhead between motor movements.
+:white_check_mark: Primitive functions for single stepping, direction, driver enable, & endstop detection.
+:white_check_mark: Built-in homing function, interrupt driven (non-blocking).
+:white_check_mark: Interrupt driven stepping and planning operates in the background (multi-tasking).
+:white_check_mark: Library manages I/O and interrupt redirection dynamically for multiple instances.
+:white_check_mark: Supports relative and absolute positioning.
+:white_check_mark: User programmed timer interrupt callback.
+:white_check_mark: Fast I/O and math functions available to your program. See the jio.h & jsmath.h files.
+:white_check_mark: Motor movement complete callback relieves user program of constant monitoring.
 
 ### HARDWARE
 
@@ -44,7 +52,7 @@ or some of its concepts can be ported to other embedded platforms.
 
 NOTE: If the timer compare outputs are available in your hardware, these can be connected to
 the stepper drivers. This eliminates any timebase jitter caused by overlapping interrupt
-service routines.
+service routines. 
 
 ### EXAMPLES
 
@@ -81,7 +89,7 @@ with the library. However you can add your own interrupt handler through the
 ### DISCLAIMER 
 
 This code is functional and all features work but it is a work-in-progress. I 
-welcome your suggestions for improvement.
+welcome your suggestions for improvement and additional functionality.
 
 
 
