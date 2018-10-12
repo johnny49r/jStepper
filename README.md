@@ -6,49 +6,58 @@ _jStepper_ is an Arduino style C++ library targeted for the Atmel ATMega CPU fam
 wholly or in part to many other embedded systems. 
 
 There are simpler ways to control stepper motors such as the Arduino 'stepper' library 
-or the popular AccelStepper library, however my application required high performance and
+or the popular _AccelStepper_ library. However my application required high performance and
 unique features that weren't available in other open-source projects. 
-Support for multiple motors at high stepping rates (> 10,000 PPS) with real-time linear acceleration/deceleration 
-profiles.
-All motors had to operate synchronously to arrived at the target destination at the same time, 
-even with linear acceleration profiles. 
-All motor movements needed to happen in the background and allow the main program to proceed 
-with other tasks (non-blocking). 
-Multiple instances of the library had to be supported as well which required dynamic I/O and interrupt 
-handler redirection.
 
 ### FEATURES
 
-:white_check_mark: Supports up to 3 stepper motors per instance of the library.
-:white_check_mark: Multiple instances limited to the number of available 16 bit timers.
-:white_check_mark: High speed stepping up to 20,000 PPS on three concurrent motors.
-:white_check_mark: Very slow step rates down to one step every 72 minutes.
-:white_check_mark: Accurate step pulse timing with minimal timebase jitter.
-:white_check_mark: Constant speed mode (square profile).
-:white_check_mark: Real time linear acceleration (trapeziod & triangle profiles).
-:white_check_mark: Synchronize option plans motors to arrive at the destination at the same time.
-:white_check_mark: Plan-ahead feature eliminates overhead between motor movements.
-:white_check_mark: Primitive functions for single stepping, direction, driver enable, & endstop detection.
-:white_check_mark: Built-in homing function, interrupt driven (non-blocking).
-:white_check_mark: Interrupt driven stepping and planning operates in the background (multi-tasking).
-:white_check_mark: Library manages I/O and interrupt redirection dynamically for multiple instances.
-:white_check_mark: Supports relative and absolute positioning.
-:white_check_mark: User programmed timer interrupt callback.
-:white_check_mark: Fast I/O and math functions available to your program. See the jio.h & jsmath.h files.
-:white_check_mark: Motor movement complete callback relieves user program of constant monitoring.
+:large_blue_diamond: Supports up to 3 stepper motors per instance of the library.
+
+:large_blue_diamond: Multiple instances limited only to the number of available 16 bit timers.
+
+:large_blue_diamond: High speed stepping up to 20,000 PPS on three concurrent motors.
+
+:large_blue_diamond: Very slow step rates down to one step every 72 minutes.
+
+:large_blue_diamond: Accurate step pulse timing with minimal timebase jitter.
+
+:large_blue_diamond: Constant speed mode (square profile).
+
+:large_blue_diamond: Real-time linear acceleration/deceleration (trapeziod & triangle profiles).
+
+:large_blue_diamond: Synchronize option plans motors to arrive at the destination at the same time.
+
+:large_blue_diamond: Plan-ahead feature eliminates overhead between motor movements.
+
+:large_blue_diamond: Primitive functions for single stepping, direction, driver enable, & endstop detection.
+
+:large_blue_diamond: Built-in homing function, interrupt driven (non-blocking).
+
+:large_blue_diamond: Interrupt driven stepping and planning operates in the background (non-blocking).
+
+:large_blue_diamond: Library manages I/O and interrupt redirection dynamically for multiple instances.
+
+:large_blue_diamond: Supports relative and absolute positioning.
+
+:large_blue_diamond: User programmed timer interrupt callback.
+
+:large_blue_diamond: Fast I/O and math functions available to your program. See the jio.h & jsmath.h files.
+
+:large_blue_diamond: Command complete callback relieves user program of constant monitoring.
 
 ### HARDWARE
 
-The general hardware model is an Arduino (or similar) ATMega board with a shield 
+The general hardware model is an Arduino (or similar) ATMega board with a shield (daughter board)
 containing stepper driver modules. This is very similar to the popular RAMPS architecture.
 This library will also work with hybrids such as the Rambo and others.
 
 The code generates STEP and DIRECTION signals in real time. 
-The user supplies control pin and geometry information via a template structure.
+The user supplies control pin and geometry information via a template structure. The I/O assignments
+are 'soft' and may be changed on the fly. 
 
-The library has been tested on the ATMega 2560 platform. It should also 
-work on the ATMega 328 and other derivatives of Atmel CPU's. Additionally this library 
-or some of its concepts can be ported to other embedded platforms.
+The library has been tested on the ATMega 2560 platform. It should also work on the ATMega 328 
+and other derivatives of Atmel CPU's. Additionally this library or some of its concepts can 
+be ported to other embedded platforms.
 
 NOTE: If the timer compare outputs are available in your hardware, these can be connected to
 the stepper drivers. This eliminates any timebase jitter caused by overlapping interrupt
@@ -89,7 +98,7 @@ with the library. However you can add your own interrupt handler through the
 ### DISCLAIMER 
 
 This code is functional and all features work but it is a work-in-progress. I 
-welcome your suggestions for improvement and additional functionality.
+welcome your suggestions for improvement and additional functionality. Enjoy!
 
 
 
