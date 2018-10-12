@@ -2,6 +2,8 @@
  *  jStepper.cpp
  */
 
+
+
 #include "jStepper.h"
 
 
@@ -109,7 +111,6 @@ uint8_t jStepper::begin(jsMotorConfig mC)
 	//
 	// input pins
 	//
-	//PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MIN_0_PIN);
 	PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MIN_0_PIN);
 	PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MIN_1_PIN);
 	PIN_INPUT_PULLUP(_mConfig.ENDSTOP_MIN_2_PIN);

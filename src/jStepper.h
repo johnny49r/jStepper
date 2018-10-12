@@ -73,8 +73,11 @@
 //
 //
 
+
+
 #ifndef _JSTEPPER_H
 #define _JSTEPPER_H
+
 
 //### Arduino included libs ###
 #include <stdlib.h>
@@ -82,9 +85,12 @@
 #include <inttypes.h>
 #include <avr/pgmspace.h>
 
+
+
 //### local header files
 #include "jsmath.h"
-#include "jsio.h"
+//#include "jsio.h"
+#include <jio.h>			// shared I/O header file
 #include "jsconfig.h"
 
 
@@ -515,5 +521,6 @@ private:
 //         break;
 //	}
 //}
+
 
 #endif // JSTEPPER_H
