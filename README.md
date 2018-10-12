@@ -2,7 +2,7 @@
 
 Arduino style high performance stepper motor library. 
 
-The library is targeted for the Arduino / ATmel ATMega CPU family but can be adapted
+The library is targeted for the Arduino / Atmel ATMega CPU family but can be adapted
 wholly or in part to many other embedded systems. 
 There are simpler ways to control stepper motors such as the Arduino 'stepper' library 
 or the popular AccelStepper library. 
