@@ -1,4 +1,5 @@
-# jStepper 
+
+# _jStepper_
 
 A high performance **stepper motor** library for embedded systems. 
 
@@ -6,7 +7,7 @@ _jStepper_ is an Arduino style C++ library targeted for the Atmel ATMega CPU fam
 wholly or in part to many other embedded systems. 
 
 There are simpler ways to control stepper motors such as the Arduino 'stepper' library 
-or the popular _AccelStepper_ library. However my application required high performance and
+or the popular _AccelStepper_ library. However, my application required high performance and
 unique features that weren't available in other open-source projects. 
 
 ### FEATURES
