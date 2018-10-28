@@ -80,6 +80,8 @@ uint8_t jStepper::begin(jsMotorConfig mC)
 	mBlocks[0].stepsPerUnit = _mConfig.MOTOR_0_STEPS_PER_MM;
 	mBlocks[1].stepsPerUnit = _mConfig.MOTOR_1_STEPS_PER_MM;
 	mBlocks[2].stepsPerUnit = _mConfig.MOTOR_2_STEPS_PER_MM;
+			Serial.print("steps/mm=");
+			Serial.println(mBlocks[0].stepsPerUnit);
 
 	//***************************************************************
 	// initialize I/O pins
@@ -201,22 +203,23 @@ uint8_t jStepper::begin(jsMotorConfig mC)
 	mBlocks[MOTOR_0].speed = _mConfig.MOTOR_0_SPEED;
 	mBlocks[MOTOR_0].acceleration = _mConfig.MOTOR_0_ACCEL;
 	mBlocks[MOTOR_0].homeInvert = _mConfig.MOTOR_0_HOMING_INVERT;
+	mBlocks[MOTOR_0].positionMode = MODE_ABSOLUTE;
 
 	mBlocks[MOTOR_1].minPosition = _mConfig.MOTOR_1_MINPOS;
 	mBlocks[MOTOR_1].maxPosition = _mConfig.MOTOR_1_MAXPOS;
 	mBlocks[MOTOR_1].speed = _mConfig.MOTOR_1_SPEED;
 	mBlocks[MOTOR_1].acceleration = _mConfig.MOTOR_1_ACCEL;
 	mBlocks[MOTOR_1].homeInvert = _mConfig.MOTOR_1_HOMING_INVERT;
+	mBlocks[MOTOR_1].positionMode = MODE_ABSOLUTE;
 
 	mBlocks[MOTOR_2].minPosition = _mConfig.MOTOR_2_MINPOS;
 	mBlocks[MOTOR_2].maxPosition = _mConfig.MOTOR_2_MAXPOS;
 	mBlocks[MOTOR_2].speed = _mConfig.MOTOR_2_SPEED;
 	mBlocks[MOTOR_2].acceleration = _mConfig.MOTOR_2_ACCEL;
 	mBlocks[MOTOR_2].homeInvert = _mConfig.MOTOR_2_HOMING_INVERT;
+	mBlocks[MOTOR_2].positionMode = MODE_ABSOLUTE;
 
-	// default to absolute position mode
-	_positionMode = MODE_ABSOLUTE;
-	_planValid = false;				// no movemnt plans yet
+	_planValid = false;				// no movement plans yet
 
 	return ERR_NONE;
 }
@@ -252,23 +255,23 @@ float jStepper::getAcceleration(uint8_t motorNum)
 
 //###################################################################
 //
-// set motor speed in mm / sec.
+// set motor speed in mm / min.
 //
 void jStepper::setSpeed(float speed0, float speed1, float speed2)   // speed in mm/sec
 {		
 	if(speed0 > 0.0)	// no change if <= 0.0
 	{
-	   mBlocks[MOTOR_0].speed = (speed0 > mBlocks[MOTOR_0].maxSpeed) ? mBlocks[MOTOR_0].maxSpeed : speed0;
+		mBlocks[MOTOR_0].speed = (speed0 > mBlocks[MOTOR_0].maxSpeed) ? mBlocks[MOTOR_0].maxSpeed : speed0;
 	}
 
 	if(speed1 > 0.0)		
 	{
-	   mBlocks[MOTOR_1].speed = (speed1 > mBlocks[MOTOR_1].maxSpeed) ? mBlocks[MOTOR_1].maxSpeed : speed1;
+		mBlocks[MOTOR_1].speed = (speed1 > mBlocks[MOTOR_1].maxSpeed) ? mBlocks[MOTOR_1].maxSpeed : speed1;
 	}
 	
 	if(speed2 > 0.0)		
 	{
-	   mBlocks[MOTOR_2].speed = (speed2 > mBlocks[MOTOR_2].maxSpeed) ? mBlocks[MOTOR_2].maxSpeed : speed2;
+		mBlocks[MOTOR_2].speed = (speed2 > mBlocks[MOTOR_2].maxSpeed) ? mBlocks[MOTOR_2].maxSpeed : speed2;
 	}
 }
 
@@ -339,7 +342,7 @@ void jStepper::stepComplete(uint8_t motorNum)
 	mBlocks[motorNum].mAction = STEP_DONE;
 	if(!isRunning(MOTOR_ALL) && isrRedirectArray[STEP_COMPLETE_CALLBACK] != NULL)
 	{
-		sei();		// prevent user function from blocking other interrupts
+		//sei();		// prevent user function from blocking other interrupts
 		(*(isrRedirectArray[STEP_COMPLETE_CALLBACK]))();
 	}
 }
@@ -399,10 +402,32 @@ float jStepper::getPosition(uint8_t motorNum)
 // setPositionMode() sets absolute or relative positioning
 // Absolute (default) - all moves are relative to the origin.
 // Relative - all moves are relative to the last position.
+// If motorNum == MOTOR_ALL, all motors are set to the same
+// positioning mode.
 //
-void jStepper::setPositionMode(uint8_t positionMode)
+void jStepper::setPositionMode(uint8_t motorNum, uint8_t positionMode)
 {
-	_positionMode = positionMode;		// save in private
+	if(motorNum == MOTOR_0 || motorNum == MOTOR_ALL)
+	{
+		mBlocks[MOTOR_0].positionMode = positionMode;
+	}
+	if(motorNum == MOTOR_1 || motorNum == MOTOR_ALL)
+	{
+		mBlocks[MOTOR_1].positionMode = positionMode;
+	}
+	if(motorNum == MOTOR_2 || motorNum == MOTOR_ALL)
+	{
+		mBlocks[MOTOR_2].positionMode = positionMode;
+	}
+}
+
+
+//###################################################################
+// getPositionMode() gets positioning mode for the requested motor.
+//
+uint8_t jStepper::getPositionMode(uint8_t motorNum)
+{
+	return mBlocks[motorNum].positionMode;
 }
 
 
@@ -891,16 +916,17 @@ void jStepper::timerISRC(void)
 
 //###################################################################
 //
-uint8_t jStepper::homeMotor(uint8_t motorNum, uint16_t hSpeed)
+uint8_t jStepper::homeMotor(uint8_t motorNum, uint16_t hSpeed)	// speed is in mm/sec
 {
 	if(isRunning(MOTOR_ALL))
 		return ERR_MOTORS_RUNNING;		// busy running something!
 
 	mBlocks[motorNum].mAction = HOMING_PHASE1;
 	mBlocks[motorNum].lastResult = ERR_NONE;
-	_homingSpeed = hSpeed;
+	_homingSpeed = 1000000 / (hSpeed * mBlocks[motorNum].stepsPerUnit);
 	_homingSteps = 0;
 	_homingMotor = motorNum;			// remember the motor to run
+	_maxHomingSteps = mBlocks[_homingMotor].maxPosition * mBlocks[_homingMotor].stepsPerUnit; 	// max steps to try
 
 	// fire off timer
 	//TCNT = 0x00;
@@ -919,7 +945,6 @@ uint8_t jStepper::homeMotor(uint8_t motorNum, uint16_t hSpeed)
 //
 void jStepper::homeISR(void)
 {
-#define TIRED_OF_TRYING 32000		// arbitrary step limit
 	uint32_t i = 0;
 
 	switch(mBlocks[_homingMotor].mAction)
@@ -935,7 +960,7 @@ void jStepper::homeISR(void)
 			{
 				mBlocks[_homingMotor].lastResult = stepMotor(_homingMotor);	// do one step
 
-				if(_homingSteps++ >= TIRED_OF_TRYING)		// too many steps?
+				if(_homingSteps++ >= _maxHomingSteps)		// too many steps?
 					mBlocks[_homingMotor].lastResult = ERR_ENDSTOP_NOT_FOUND;
 
 				if(mBlocks[_homingMotor].lastResult != ERR_NONE)
@@ -968,7 +993,6 @@ void jStepper::homeISR(void)
 				{
 					TIMSK = 0x0;	// kill interrupts
 					stepComplete(_homingMotor);
-
 					break;
 				}
 				TCNT = 65535 - (_homingSpeed * 8);	// 1/4 speed
@@ -1024,7 +1048,7 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 	uint32_t sTot = 0;
 	uint32_t tTot;
 	bool nothingToDo = true;
-	float fr;
+	float fr, P0, P1, P2;
 	union {
 	   uint16_t val16[2];
 	   uint32_t val32;
@@ -1034,22 +1058,29 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 	_planResult = ERR_NONE;
 
 	//
+	// absolute or relative positioning?
+	//
+	P0 = (mBlocksNext[MOTOR_0].positionMode == MODE_ABSOLUTE) ? pos0 : pos0 + mBlocksNext[MOTOR_0].curPosition;
+	P1 = (mBlocksNext[MOTOR_1].positionMode == MODE_ABSOLUTE) ? pos1 : pos1 + mBlocksNext[MOTOR_1].curPosition;
+	P2 = (mBlocksNext[MOTOR_2].positionMode == MODE_ABSOLUTE) ? pos2 : pos2 + mBlocksNext[MOTOR_2].curPosition;
+
+	//
 	// do a sanity check on new position values
 	//
-    if(pos0 < mBlocksNext[MOTOR_0].minPosition || pos0 > mBlocksNext[MOTOR_0].maxPosition)
+    if(P0 < mBlocksNext[MOTOR_0].minPosition || P0 > mBlocksNext[MOTOR_0].maxPosition)
     	_planResult = ERR_OUTSIDE_BOUNDARY;
     else
-    	mBlocksNext[MOTOR_0].newPosition = pos0;
+    	mBlocksNext[MOTOR_0].newPosition = P0;
 
-    if(pos1 < mBlocksNext[MOTOR_1].minPosition || pos1 > mBlocksNext[MOTOR_1].maxPosition)
+    if(P1 < mBlocksNext[MOTOR_1].minPosition || P1 > mBlocksNext[MOTOR_1].maxPosition)
     	_planResult = ERR_OUTSIDE_BOUNDARY;
     else
-    	mBlocksNext[MOTOR_1].newPosition = pos1;
+    	mBlocksNext[MOTOR_1].newPosition = P1;
 
-    if(pos2 < mBlocksNext[MOTOR_2].minPosition || pos2 > mBlocksNext[MOTOR_2].maxPosition)
+    if(P2 < mBlocksNext[MOTOR_2].minPosition || P2 > mBlocksNext[MOTOR_2].maxPosition)
     	_planResult = ERR_OUTSIDE_BOUNDARY;
     else
-    	mBlocksNext[MOTOR_2].newPosition = pos2;
+    	mBlocksNext[MOTOR_2].newPosition = P2;
 
     if(_planResult != ERR_NONE)
     	return _planResult;
@@ -1062,8 +1093,8 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 		//
 		// calc number of steps & direction of movement
 		//
-        fr = mBlocksNext[i].newPosition - mBlocksNext[i].curPosition;
-        fr = fabs(fr);			// flip to positive num
+		fr = mBlocksNext[i].newPosition - mBlocksNext[i].curPosition;
+        fr = fabs(fr);								// flip to positive num
 		mBlocksNext[i].numSteps = round(fr * mBlocksNext[i].stepsPerUnit);
 		mBlocksNext[i].cruiseSteps = mBlocksNext[i].numSteps; 	// initialize cruise steps
 		mBlocksNext[i].mAction = STEP_DONE;						// clear action
@@ -1286,7 +1317,7 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 //###################################################################
 // runMotors() - The main attraction!!!
 //
-// Motor movement planning is done in setPosition().
+// Motor movement planning is done in planMoves().
 //
 // Motor driver should have been enabled via 'setEnable()' prior to
 // calling here.
@@ -1305,7 +1336,7 @@ uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync)
 	//
 	if(!_planValid)
 		planMoves(pos0, pos1, pos2, mSync);
-	memcpy(&mBlocks, &mBlocksNext, sizeof(mBlocks));
+	memcpy(&mBlocks, &mBlocksNext, sizeof(mBlocks));		// execute previous plan
 	_planValid = false;						// reset auto planning
 
 	if(_planResult == ERR_PLAN_VOID)		// nothing to do...just return happy!
@@ -1318,7 +1349,7 @@ uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync)
 	//***************************************************************
 	// Set up timer regs and compare interrupts.
 	//
-	cli();
+	//cli();
 	TCCRA = 0x00; 		// stop the timer
 	TCCRB = 0x00;  	
 	TIMSK = 0x00; 
@@ -1408,7 +1439,7 @@ uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync)
 	// start the selected timer in free running (normal) mode with 2Mhz clock
 	TCNT = 0x00;
 	TCCRB = 0x02;
-	sei();
+	//sei();
 	return ERR_NONE;
 }
 

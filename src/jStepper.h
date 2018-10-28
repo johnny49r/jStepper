@@ -212,7 +212,7 @@ typedef struct {
 	bool positionKnown;       	// has motor been homed?
 	volatile uint8_t mAction;  	// motor action cmd (isr state machine)
 	uint16_t stepsPerUnit;     	// steps / unit (millimeters)
-	uint16_t numSteps;        	// total steps to move
+	uint32_t numSteps;        	// total steps to move
 	volatile uint32_t cruiseSteps;      // number of cruise speed steps to do
 	uint16_t cruiseRate;       	// constant run speed (in PPS)
 	volatile uint16_t rampSteps;        // number of steps in accel/decel ramp
@@ -224,6 +224,7 @@ typedef struct {
 	uint32_t totalTime;       	// total time for this movement (in usec)
 	uint8_t lastResult;			// result code from last operation (async)
 	bool homeInvert;			// true if endstop is opposite of the origin
+	uint8_t positionMode;		// relative / absolute positioning
 
 }mBlock_t;
 
@@ -365,9 +366,16 @@ public:
 	float getPosition(uint8_t motorNum);
 
 	//****************************************************************
-	// setPositionMode() returns absolute position for the given motor
+	// setPositionMode() sets relative / absolute positioning for the
+	// given motor
 	//
-	void setPositionMode(uint8_t positionMode);
+	void setPositionMode(uint8_t motorNum, uint8_t positionMode);
+
+	//****************************************************************
+	// getPositionMode() returns positioning mode for the given motor
+	//
+	uint8_t getPositionMode(uint8_t motorNum);
+
 
 	//****************************************************************
 	// setPositionKnown() sets position known for the given motor
@@ -462,10 +470,10 @@ private:
 	uint8_t _planResult;
 	uint16_t _sort[NUM_MOTORS];
 	jsMotorConfig _mConfig;		// copy of user template
-	uint8_t _positionMode;
 	uint8_t _homingMotor;
-	uint16_t _homingSpeed;		// specific to homeMotors
+	uint32_t _homingSpeed;		// specific to homeMotors
 	uint16_t _homingSteps;
+	uint32_t _maxHomingSteps;
 
 	void stepComplete(uint8_t motorNum);
 
