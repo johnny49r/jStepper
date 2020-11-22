@@ -364,7 +364,12 @@ public:
 	// getPosition() returns absolute position for the given motor
 	//
 	float getPosition(uint8_t motorNum);
-
+	
+	//****************************************************************
+	// getPositionActual() returns absolute position for the given motor also during movement
+	//
+	float getPositionActual(uint8_t motorNum);
+	
 	//****************************************************************
 	// setPositionMode() sets relative / absolute positioning for the
 	// given motor
@@ -450,7 +455,7 @@ public:
 	// for each motor. This command overrides the values imported in
 	// the begin() function.
 	//
-	uint8_t setStepsPerUnit(uint16_t su0, uint16_t su1, uint16_t su2);
+	void setStepsPerUnit(uint16_t su0, uint16_t su1, uint16_t su2);
 
 	//****************************************************************
 	// getStepsPerUnit() returns the number of steps per unit (millimeters)

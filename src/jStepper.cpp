@@ -397,6 +397,50 @@ float jStepper::getPosition(uint8_t motorNum)
 		return -1;
 }
 
+//###################################################################
+// get actual position during motor movement
+float jStepper::getPositionActual(uint8_t motorNum)
+{
+	if(motorNum < NUM_MOTORS)
+	{
+		if (!isRunning(motorNum))
+		{
+			return mBlocks[motorNum].curPosition;
+		}
+		else
+		{
+			switch (mBlocks[MOTOR_0].mAction)  // check profile state
+			{
+				case STEP_CRUISE:		// constant speed
+				case STEP_LONG:
+
+					if (!getDirection(motorNum))
+						return mBlocks[motorNum].curPosition - (float) mBlocks[motorNum].rampStepCount / mBlocksNext[motorNum].stepsPerUnit - (float) mBlocks[motorNum].cruiseSteps / mBlocksNext[motorNum].stepsPerUnit;
+					else
+						return mBlocks[motorNum].curPosition - (-1 * (float) mBlocks[motorNum].rampStepCount / mBlocksNext[motorNum].stepsPerUnit - (float) mBlocks[motorNum].cruiseSteps / mBlocksNext[motorNum].stepsPerUnit);
+				
+				case STEP_ACCEL:		// accelerating
+					if (!getDirection(motorNum))
+						return mBlocks[motorNum].curPosition - (float) mBlocks[motorNum].cruiseSteps / mBlocksNext[motorNum].stepsPerUnit - (float) mBlocks[motorNum].rampSteps / mBlocksNext[motorNum].stepsPerUnit - (float) (mBlocks[motorNum].rampSteps - mBlocks[motorNum].rampStepCount) / mBlocksNext[motorNum].stepsPerUnit;
+					else
+						return mBlocks[motorNum].curPosition - (-1 * (float) mBlocks[motorNum].cruiseSteps / mBlocksNext[motorNum].stepsPerUnit - (float) mBlocks[motorNum].rampSteps / mBlocksNext[motorNum].stepsPerUnit - (float) (mBlocks[motorNum].rampSteps - mBlocks[motorNum].rampStepCount) / mBlocksNext[motorNum].stepsPerUnit);
+				
+				case STEP_DECEL:		// decelerating
+					if (!getDirection(motorNum))
+						return mBlocks[motorNum].curPosition - (float) mBlocks[motorNum].rampStepCount / (float) mBlocksNext[motorNum].stepsPerUnit;
+					else
+						return mBlocks[motorNum].curPosition - (-1 * (float) mBlocks[motorNum].rampStepCount / (float) mBlocksNext[motorNum].stepsPerUnit);
+
+				default:
+					return 0;
+			}
+		}
+	}
+	else
+	{
+		return -1;
+	}
+}
 
 //###################################################################
 // setPositionMode() sets absolute or relative positioning
@@ -945,7 +989,7 @@ uint8_t jStepper::homeMotor(uint8_t motorNum, uint16_t hSpeed)	// speed is in mm
 //
 void jStepper::homeISR(void)
 {
-	uint32_t i = 0;
+	// uint32_t i = 0;
 
 	switch(mBlocks[_homingMotor].mAction)
 	{
@@ -1327,7 +1371,7 @@ uint8_t jStepper::planMoves(float pos0, float pos1, float pos2, bool mSync)
 //
 uint8_t jStepper::runMotors(float pos0, float pos1, float pos2, bool mSync)
 {
-	uint8_t errcode = ERR_NONE;
+	// uint8_t errcode = ERR_NONE;
 	if(isRunning(MOTOR_ALL))		// exit if any motors are still running
 		return ERR_MOTORS_RUNNING;
 
@@ -1463,7 +1507,7 @@ void jStepper::isrRedirect(uint8_t whichTimerInt)
 
 //*******************************************************************
 //
-uint8_t jStepper::setStepsPerUnit(uint16_t su0, uint16_t su1, uint16_t su2)
+void jStepper::setStepsPerUnit(uint16_t su0, uint16_t su1, uint16_t su2)
 {
 	mBlocks[MOTOR_0].stepsPerUnit = su0;
 	mBlocks[MOTOR_1].stepsPerUnit = su1;
